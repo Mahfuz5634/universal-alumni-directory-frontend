@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { motion,AnimatePresence } from "framer-motion";
+import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { 
   GraduationCap, 
   Mail, 
@@ -18,13 +18,21 @@ import {
   Calendar,
   BookOpen,
   Hash,
- 
 } from "lucide-react";
+import { useAuth } from "../context/authContext";
+import api from "../services/api";
+
+// TODO: Adjust this import path to match where your axios instance is located
+
 
 export default function RegisterPage() {
   const [role, setRole] = useState("student"); 
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const {register} = useAuth(); 
+
+  // State for storing the dynamically fetched universities
+  const [universities, setUniversities] = useState([]);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -43,10 +51,25 @@ export default function RegisterPage() {
     github_id: ""
   });
 
+  // Fetch universities on component mount
+  useEffect(() => {
+    const fetchUniversities = async () => {
+      try {
+        const response = await api.get('/universities');
+        // Depending on your API structure, you might need response.data.data 
+        // Adjust if your response is nested.
+        setUniversities(response.data); 
+      } catch (error) {
+        console.error("Failed to fetch universities:", error);
+      }
+    };
+
+    fetchUniversities();
+  }, []);
+
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
-
   
   const fillAlumniData = () => {
     setRole("alumni");
@@ -70,7 +93,7 @@ export default function RegisterPage() {
   const fillStudentData = () => {
     setRole("student");
     setFormData({
-      ...formData, // Keep existing fields to not break react controlled inputs
+      ...formData, 
       name: "Sabbir Hossain",
       email: "sabbir.student@example.com",
       password: "pass1234",
@@ -78,7 +101,6 @@ export default function RegisterPage() {
       department: "BBA",
       graduation_year: "2026",
       contact_number: "01812345678",
-      // Clear alumni fields just in case
       student_roll_no: "",
       company: "",
       position: "",
@@ -87,11 +109,10 @@ export default function RegisterPage() {
     });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
-    
-    // Construct payload based on role
+
     const payload = {
       name: formData.name,
       email: formData.email,
@@ -103,19 +124,16 @@ export default function RegisterPage() {
       contact_number: formData.contact_number,
     };
 
-    if (role === "alumni") {
-      payload.student_roll_no = formData.student_roll_no;
-      payload.company = formData.company;
-      payload.position = formData.position;
-      payload.linkedin_id = formData.linkedin_id;
-      payload.github_id = formData.github_id;
-    }
-    
-    setTimeout(() => {
-      console.log("Registration Payload:", payload);
+    try {
+      const res = await register(payload);
+      alert("Register success:", res);
+      // optional: redirect or show success message
+    } catch (error) {
+      console.error("Register failed:", error);
+      alert("Register failed. Please try again.");
+    } finally {
       setIsLoading(false);
-      alert(`Successfully registered as ${role}! Check console for payload.`);
-    }, 1500);
+    }
   };
 
   return (
@@ -240,8 +258,14 @@ export default function RegisterPage() {
                   <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none"><Building2 className="h-5 w-5 text-slate-400" /></div>
                   <select name="university_id" value={formData.university_id} onChange={handleChange} required className="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 transition-all text-slate-800 shadow-sm appearance-none cursor-pointer">
                     <option value="" disabled>Select your university</option>
-                    <option value="69e505c2dba758dd44b49ff8">Demo University of Technology</option>
-                    <option value="dummy_id_2">Global Business School</option>
+                    
+                    {/* Map through the dynamically fetched universities */}
+                    {universities.map((uni) => (
+                      <option key={uni._id} value={uni._id}>
+                        {uni.name}
+                      </option>
+                    ))}
+
                   </select>
                 </div>
               </div>

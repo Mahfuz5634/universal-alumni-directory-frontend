@@ -1,6 +1,5 @@
 "use client";
-
-import { useState } from "react";
+import { use,  useState } from "react";
 import { motion } from "framer-motion";
 import { 
   GraduationCap, 
@@ -16,13 +15,17 @@ import {
   CheckCircle2,
   ArrowLeft
 } from "lucide-react";
+import { useAuth } from "../context/authContext";
+import { useNavigate } from "react-router";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState("student"); // student, uni_admin, admin
+  const [role, setRole] = useState("student"); 
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const {login}=useAuth();
+  const navigate = useNavigate();
 
   const roles = [
     { id: "student", label: "Alumni", icon: <User className="w-4 h-4" /> },
@@ -36,16 +39,34 @@ export default function LoginPage() {
     setRole("admin");
   };
 
-  const handleLogin = (e) => {
-    e.preventDefault();
-    setIsLoading(true);
-    
-    setTimeout(() => {
-      console.log("Logging in with:", { email, password, role });
-      setIsLoading(false);
-      alert(`Logged in successfully as ${role}!`);
-    }, 1500);
-  };
+  const handleLogin = async (e) => {
+  e.preventDefault();
+  setIsLoading(true);
+
+  try {
+    const res = await login({
+      email,
+      password,
+      role,
+    });
+
+    console.log("Login success:", res);
+
+    alert(`Logged in successfully as ${res.user.role}!`);
+    if (res.user.role === "admin") navigate("/dashboard/system-admin");
+    else if (res.user.role === "uni_admin") navigate("/dashboard/uni-admin");
+    else if (res.user.role === "alumni") navigate("/dashboard/alumni");
+    else if (res.user.role === "student") navigate("/dashboard/student");
+
+
+  } catch (err) {
+    console.error("Login error:", err);
+
+    alert(err.error || "Login failed");
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   return (
     <div className="min-h-screen flex w-full font-sans bg-white text-slate-900 selection:bg-blue-200 selection:text-blue-900">

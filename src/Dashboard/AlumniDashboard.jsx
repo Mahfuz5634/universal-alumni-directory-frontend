@@ -1,9 +1,9 @@
 import React from "react";
-import DashboardLayout from "./DashboardLayout";
+
 
 export default function AlumniDashboard() {
   return (
-    <DashboardLayout title="Alumni Hub">
+    <>
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-6">
         <h3 className="text-xl font-semibold mb-4">My Profile</h3>
         <p className="text-gray-600">Update your current company, position, and contact information.</p>
@@ -20,6 +20,6 @@ export default function AlumniDashboard() {
         />
         {/* Fetch from /api/directory */}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

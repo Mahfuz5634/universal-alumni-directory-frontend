@@ -1,5 +1,5 @@
 "use client";
-import { use,  useState } from "react";
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { 
   GraduationCap, 
@@ -24,11 +24,13 @@ export default function LoginPage() {
   const [role, setRole] = useState("student"); 
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const {login}=useAuth();
+  const {login} = useAuth();
   const navigate = useNavigate();
 
+  // এখানে Student রোল যুক্ত করা হয়েছে এবং Alumni এর id আপডেট করা হয়েছে
   const roles = [
-    { id: "student", label: "Alumni", icon: <User className="w-4 h-4" /> },
+    { id: "student", label: "Student", icon: <User className="w-4 h-4" /> },
+    { id: "alumni", label: "Alumni", icon: <GraduationCap className="w-4 h-4" /> },
     { id: "uni_admin", label: "Uni Admin", icon: <Building2 className="w-4 h-4" /> },
     { id: "admin", label: "Super Admin", icon: <Shield className="w-4 h-4" /> }
   ];
@@ -40,33 +42,31 @@ export default function LoginPage() {
   };
 
   const handleLogin = async (e) => {
-  e.preventDefault();
-  setIsLoading(true);
+    e.preventDefault();
+    setIsLoading(true);
 
-  try {
-    const res = await login({
-      email,
-      password,
-      role,
-    });
+    try {
+      const res = await login({
+        email,
+        password,
+        role,
+      });
 
-    console.log("Login success:", res);
+      console.log("Login success:", res);
 
-    alert(`Logged in successfully as ${res.user.role}!`);
-    if (res.user.role === "admin") navigate("/dashboard/system-admin");
-    else if (res.user.role === "uni_admin") navigate("/dashboard/uni-admin");
-    else if (res.user.role === "alumni") navigate("/dashboard/alumni");
-    else if (res.user.role === "student") navigate("/dashboard/student");
+      alert(`Logged in successfully as ${res.user.role}!`);
+      if (res.user.role === "admin") navigate("/system-admin");
+      else if (res.user.role === "uni_admin") navigate("/uni-admin");
+      else if (res.user.role === "alumni") navigate("/alumni");
+      else if (res.user.role === "student") navigate("/student");
 
-
-  } catch (err) {
-    console.error("Login error:", err);
-
-    alert(err.error || "Login failed");
-  } finally {
-    setIsLoading(false);
-  }
-};
+    } catch (err) {
+      console.error("Login error:", err);
+      alert(err.error || "Login failed");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen flex w-full font-sans bg-white text-slate-900 selection:bg-blue-200 selection:text-blue-900">
@@ -131,7 +131,7 @@ export default function LoginPage() {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.1 }}
-          className="w-full max-w-[420px]"
+          className="w-full max-w-[500px]" // একটু প্রশস্ত করা হয়েছে যেন ৪টা রোল ভালোমতো দেখা যায়
         >
           {/* Mobile Logo (Only shows on small screens) */}
           <div className="flex lg:hidden items-center gap-3 mb-10">
@@ -151,13 +151,13 @@ export default function LoginPage() {
           <form onSubmit={handleLogin} className="space-y-6">
             
             {/* Role Selection Tabs */}
-            <div className="bg-slate-100 p-1.5 rounded-xl flex gap-1">
+            <div className="bg-slate-100 p-1.5 rounded-xl flex flex-wrap sm:flex-nowrap gap-1">
               {roles.map((r) => (
                 <button
                   key={r.id}
                   type="button"
                   onClick={() => setRole(r.id)}
-                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-bold rounded-lg transition-all duration-200 ${
+                  className={`flex-1 min-w-[80px] flex items-center justify-center gap-1.5 py-2.5 text-xs sm:text-sm font-bold rounded-lg transition-all duration-200 ${
                     role === r.id 
                       ? "bg-white text-blue-700 shadow-sm ring-1 ring-slate-200/50" 
                       : "text-slate-500 hover:text-slate-800 hover:bg-slate-200/50"

@@ -1,9 +1,10 @@
 import React from "react";
-import DashboardLayout from "./DashboardLayout";
+
 
 export default function StudentDashboard() {
-  return (
-    <DashboardLayout title="Student Portal">
+  return <>
+
+    
       <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl p-8 text-white mb-6 shadow-md">
         <h2 className="text-2xl font-bold mb-2">Connect with Alumni</h2>
         <p>Find mentors, explore career paths, and connect with graduates from your university.</p>
@@ -18,6 +19,7 @@ export default function StudentDashboard() {
         />
         {/* Map over /api/directory results here */}
       </div>
-    </DashboardLayout>
-  );
+        </>
+    
+  ;
 }

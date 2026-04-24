@@ -30,11 +30,13 @@ import {
   Award,
 } from "lucide-react";
 
-import { useAuth } from "../context/authContext";
+import { useAuth } from "../context/authContext"; 
+import { useToast } from "../context/ToastContext";
 import api from "../services/api";
 
 export default function SystemAdminDashboard() {
   const { user, logout } = useAuth();
+  const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState("profile");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -203,7 +205,7 @@ export default function SystemAdminDashboard() {
       setUniModal({ isOpen: false, mode: "add", data: null });
       fetchUniversities();
     } catch (err) {
-      alert("Failed to save university.");
+      showToast("Failed to save university.", "error");
     } finally {
       setIsSubmitting(false);
     }
@@ -216,7 +218,7 @@ export default function SystemAdminDashboard() {
       await api.delete(`/universities/${id}`);
       fetchUniversities();
     } catch (err) {
-      alert("Failed to delete university.");
+      showToast("Failed to delete university.", "error");
     }
   };
 
@@ -234,17 +236,17 @@ export default function SystemAdminDashboard() {
           university_id: adminModal.data.university_id,
         };
         await api.post("/admin/system/create-uni-admin", payload);
-        alert("University Admin created successfully!");
+        showToast("University Admin created successfully!", "success");
       } else {
         const adminId = formData.get("adminId");
         const payload = { name: formData.get("name") };
         await api.put(`/admin/system/uni-admin/${adminId}`, payload);
-        alert("Admin details updated successfully!");
+        showToast("Admin details updated successfully!", "success");
       }
       setAdminModal({ isOpen: false, mode: "create", data: null });
       if (activeTab === "uni_admins") fetchUniAdmins();
     } catch (err) {
-      alert("Failed to save admin info.");
+      showToast("Failed to save admin info.", "error");
     } finally {
       setIsSubmitting(false);
     }
@@ -256,7 +258,7 @@ export default function SystemAdminDashboard() {
       await api.delete(`/admin/system/alumni/${id}`);
       fetchAlumni();
     } catch (err) {
-      alert("Failed to delete alumni.");
+      showToast("Failed to delete alumni.", "error");
     }
   };
 

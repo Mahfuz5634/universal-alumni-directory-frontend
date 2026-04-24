@@ -17,6 +17,8 @@ import ProtectedRoute from './protectedRoutes/protecetedRoutes';
 import UniversitiesPage from './Pages/University';
 import PlatformPage from './Pages/PlatformPage';
 import SecurityPage from './Pages/SecurityPage';
+import { ToastProvider } from './context/ToastContext';
+
 
 
 const router = createBrowserRouter([
@@ -69,8 +71,11 @@ const router = createBrowserRouter([
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-   <AuthProvider>
+  <ToastProvider>
+     <AuthProvider>
      <RouterProvider router={router} />,
    </AuthProvider>
+  
+  </ToastProvider>
   </StrictMode>,
 )

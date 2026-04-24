@@ -14,6 +14,9 @@ import StudentDashboard from './Dashboard/StudentDashboard';
 import SystemAdminDashboard from './Dashboard/SystemAdminDashboard';
 import UniAdminDashboard from './Dashboard/UniAdminDashboard';
 import ProtectedRoute from './protectedRoutes/protecetedRoutes';
+import UniversitiesPage from './Pages/University';
+import PlatformPage from './Pages/PlatformPage';
+import SecurityPage from './Pages/SecurityPage';
 
 
 const router = createBrowserRouter([
@@ -46,6 +49,17 @@ const router = createBrowserRouter([
       {
         path: "/student",
         element:<ProtectedRoute><StudentDashboard/></ProtectedRoute>
+      }
+      ,{
+        path:"/universities",
+        element:<UniversitiesPage></UniversitiesPage>
+      },
+      {
+        path:"/platform",
+        element:<PlatformPage></PlatformPage>
+      },{
+        path:"/security",
+        element:<SecurityPage></SecurityPage>
       }
     
 

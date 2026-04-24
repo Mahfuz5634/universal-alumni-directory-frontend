@@ -39,7 +39,7 @@ export default function Home() {
     <div className="bg-[#fafafa] min-h-screen font-sans text-slate-900 overflow-x-hidden selection:bg-indigo-200 selection:text-indigo-900">
       {/* Floating Glass Navbar  */}
       <div className="fixed top-6 inset-x-0 mx-auto max-w-5xl px-4 z-50">
-        <nav className="bg-white/70 backdrop-blur-xl border border-white/40 shadow-2xl shadow-indigo-100/20 rounded-full px-6 py-3 flex justify-between items-center">
+        <nav className="bg-white/80 backdrop-blur-xl border border-white/40 shadow-2xl shadow-indigo-100/20 rounded-full px-6 py-3 flex justify-between items-center">
           <div className="flex items-center gap-2.5">
             <div className="h-9 w-9 bg-gradient-to-br from-indigo-600 to-violet-600 rounded-full flex items-center justify-center shadow-lg shadow-indigo-200">
               <GraduationCap className="w-5 h-5 text-white" strokeWidth={2.5} />

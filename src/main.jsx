@@ -39,10 +39,10 @@ const router = createBrowserRouter([
         path: "/uni-admin",
         element: <UniAdminDashboard />
       },
-      // {
-      //   path: "/alumni",
-      //   element: <AlumniDashboard />
-      // },
+      {
+        path: "/alumni",
+        element: <AlumniDashboard />
+      },
       {
         path: "/student",
         element:<ProtectedRoute><StudentDashboard/></ProtectedRoute>

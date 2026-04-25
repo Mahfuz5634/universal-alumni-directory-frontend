@@ -1,3 +1,9 @@
+# Universal Alumni Platform Project for course: Software Development ( CSE-416 )
+## Project Developers:
+### Name: MD. Mahfuz (ID:0432310005101057)
+### Name: Hrithik Saha (ID:0432310005101071)
+
+
 # Universal Alumni Platform — Frontend
 
 A modern role-based alumni networking platform built with React, Tailwind CSS, and Framer Motion.  

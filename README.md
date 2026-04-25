@@ -1,16 +1,68 @@
-# React + Vite
+# Universal Alumni Platform — Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A modern role-based alumni networking platform built with React, Tailwind CSS, and Framer Motion.  
+This frontend provides a clean and responsive user interface for students, alumni, university admins, and super admins to connect, verify profiles, and manage university-specific alumni data.
 
-Currently, two official plugins are available:
+## Project Overview
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+This project is designed to create a centralized alumni ecosystem where:
 
-## React Compiler
+- Running students can view verified alumni profiles
+- Alumni can create and manage their profiles
+- University admins can verify alumni belonging to their university
+- Super admins can manage the entire platform
+- Users can connect through contact details, LinkedIn, GitHub, and other profile links
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+The frontend focuses on user experience, role-based navigation, and smooth interaction across all user types.
 
-## Expanding the ESLint configuration
+## Features
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+- Role-based authentication UI
+- Separate dashboards for different user roles
+- Alumni profile browsing and connection access
+- University-wise admin flow
+- Responsive design for all screen sizes
+- Smooth animations using Framer Motion
+- Clean and modern UI with Tailwind CSS
+- Secure login and registration pages
+- Dynamic navigation based on user role
+
+## Tech Stack
+
+- **Frontend Framework:** React
+- **Styling:** Tailwind CSS
+- **Animation:** Framer Motion
+- **State / Data Handling:** React Hooks, API integration
+- **Authentication:** JWT-based login flow
+- **Deployment:** Vercel
+
+## Getting Started
+
+### Prerequisites
+
+Make sure you have the following installed:
+
+- Node.js
+- npm or yarn
+
+
+## Core User Roles
+
+  Running Student: Can browse alumni profiles and connect with them
+  Alumni: Can create and manage their professional profile
+  University Admin: Can verify alumni from their university
+  Super Admin: Can manage all universities and users
+
+## Key Highlights
+
+  University-specific access control
+  Alumni verification workflow
+  Professional networking interface
+  Scalable structure for future expansion
+  Future Improvements
+  Advanced search and filter for alumni
+  Messaging system
+  Notification panel
+  Event and reunion management
+  Resume and achievement upload
+  Public alumni directory pages

@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 
 import { useAuth } from "../context/authContext";
+import { useToast } from "../context/ToastContext";
 import api from "../services/api";
 
 const LinkedinIcon = ({ className }) => (
@@ -44,6 +45,7 @@ const GithubIcon = ({ className }) => (
 
 export default function UniAdminDashboard() {
   const { user, logout } = useAuth();
+  const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState("students");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -51,6 +53,7 @@ export default function UniAdminDashboard() {
   const [students, setStudents] = useState([]);
   const [pendingAlumni, setPendingAlumni] = useState([]);
   const [verifiedAlumni, setVerifiedAlumni] = useState([]);
+  const [universityName, setUniversityName] = useState("Loading University...");
   const [isLoading, setIsLoading] = useState(true);
 
   const [studentSearch, setStudentSearch] = useState("");
@@ -60,14 +63,27 @@ export default function UniAdminDashboard() {
   const [selectedProfile, setSelectedProfile] = useState(null);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: "",
+    message: "",
+    confirmText: "",
+    confirmBg: "",
+    iconBg: "",
+    iconColor: "",
+    icon: null,
+    onConfirm: () => {},
+  });
+
   const userInitial = (user?.name || "A").charAt(0).toUpperCase();
 
   const fetchDashboardData = async () => {
     setIsLoading(true);
     try {
-      const [studentsRes, directoryRes] = await Promise.all([
+      const [studentsRes, directoryRes, uniRes] = await Promise.all([
         api.get("/admin/uni/all-students"),
-        api.get("/directory")
+        api.get("/directory"),
+        api.get("/universities")
       ]);
 
       setStudents(studentsRes.data || []);
@@ -75,8 +91,14 @@ export default function UniAdminDashboard() {
       const allAlumni = directoryRes.data || [];
       setPendingAlumni(allAlumni.filter(a => a.role === "alumni" && !a.is_verified));
       setVerifiedAlumni(allAlumni.filter(a => a.role === "alumni" && a.is_verified));
+
+      if (user?.university_id && uniRes.data) {
+        const foundUni = uniRes.data.find(u => u._id === user.university_id);
+        setUniversityName(foundUni ? foundUni.name : "Unknown University");
+      }
     } catch (err) {
       console.error("Failed to fetch dashboard data", err);
+      showToast("Failed to load dashboard data", "error");
     } finally {
       setIsLoading(false);
     }
@@ -107,41 +129,85 @@ export default function UniAdminDashboard() {
     );
   }, [verifiedAlumni, verifiedSearch]);
 
-  const handleVerify = async (id) => {
+  const confirmVerify = (id) => {
+    setConfirmModal({
+      isOpen: true,
+      title: "Approve Alumni",
+      message: "Are you sure you want to approve and verify this alumni?",
+      confirmText: "Approve & Verify",
+      confirmBg: "bg-emerald-600 hover:bg-emerald-700",
+      iconBg: "bg-emerald-100",
+      iconColor: "text-emerald-600",
+      icon: CheckCircle2,
+      onConfirm: () => executeVerify(id),
+    });
+  };
+
+  const executeVerify = async (id) => {
     try {
       await api.put(`/admin/uni/verify/${id}`);
+      setConfirmModal({ ...confirmModal, isOpen: false });
       setIsProfileModalOpen(false);
       fetchDashboardData();
+      showToast("Alumni approved and verified successfully!", "success");
     } catch (err) {
-      console.error("Failed to verify", err);
+      showToast("Failed to verify alumni.", "error");
     }
   };
 
-  const handleReject = async (id, isVerified = false) => {
-    const message = isVerified 
-      ? "Are you sure you want to revoke verification and remove this alumni?" 
-      : "Are you sure you want to reject and delete this request?";
-    if (!window.confirm(message)) return;
+  const confirmReject = (id, isVerified = false) => {
+    setConfirmModal({
+      isOpen: true,
+      title: isVerified ? "Revoke & Delete" : "Reject Application",
+      message: isVerified
+        ? "Are you sure you want to revoke verification and permanently remove this alumni?"
+        : "Are you sure you want to reject and permanently delete this application?",
+      confirmText: isVerified ? "Revoke & Remove" : "Reject & Delete",
+      confirmBg: "bg-red-600 hover:bg-red-700",
+      iconBg: "bg-red-100",
+      iconColor: "text-red-600",
+      icon: Trash2,
+      onConfirm: () => executeReject(id, isVerified),
+    });
+  };
 
+  const executeReject = async (id, isVerified) => {
     try {
       if (isVerified) {
         await api.put(`/admin/uni/unverify/${id}`);
       }
       await api.delete(`/admin/uni/alumni/${id}`);
+      setConfirmModal({ ...confirmModal, isOpen: false });
       setIsProfileModalOpen(false);
       fetchDashboardData();
+      showToast(isVerified ? "Alumni verification revoked and profile removed." : "Alumni application rejected.", "success");
     } catch (err) {
-      console.error("Failed to reject/delete", err);
+      showToast("Failed to process the request.", "error");
     }
   };
 
-  const handleDeleteStudent = async (id) => {
-    if (!window.confirm("Are you sure you want to remove this student?")) return;
+  const confirmDeleteStudent = (id) => {
+    setConfirmModal({
+      isOpen: true,
+      title: "Remove Student",
+      message: "Are you sure you want to permanently remove this student from the directory?",
+      confirmText: "Remove Student",
+      confirmBg: "bg-red-600 hover:bg-red-700",
+      iconBg: "bg-red-100",
+      iconColor: "text-red-600",
+      icon: Trash2,
+      onConfirm: () => executeDeleteStudent(id),
+    });
+  };
+
+  const executeDeleteStudent = async (id) => {
     try {
       await api.delete(`/admin/uni/student/${id}`);
+      setConfirmModal({ ...confirmModal, isOpen: false });
       fetchDashboardData();
+      showToast("Student removed successfully.", "success");
     } catch (err) {
-      console.error("Failed to delete student", err);
+      showToast("Failed to remove student.", "error");
     }
   };
 
@@ -195,16 +261,21 @@ export default function UniAdminDashboard() {
           {isSidebarCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
         </button>
 
-        <div className={`p-6 flex items-center justify-between md:justify-start gap-3 border-b border-slate-100 ${isSidebarCollapsed ? "md:justify-center px-4" : ""}`}>
-          <div className="flex items-center gap-3">
+        <div className={`p-6 flex items-start justify-between md:justify-start gap-3 border-b border-slate-100 ${isSidebarCollapsed ? "md:justify-center px-4" : ""}`}>
+          <div className="flex items-center gap-3 overflow-hidden">
             <div className="w-9 h-9 shrink-0 bg-gradient-to-br from-indigo-600 to-indigo-800 rounded-xl flex items-center justify-center text-white shadow-md shadow-indigo-200">
               <ShieldCheck className="w-5 h-5" />
             </div>
             {!isSidebarCollapsed && (
-              <h1 className="font-bold text-lg tracking-tight text-slate-900 leading-tight">Uni Admin</h1>
+              <div className="flex flex-col overflow-hidden pr-2">
+                <h1 className="font-bold text-lg tracking-tight text-slate-900 leading-tight">Uni Admin</h1>
+                <span className="text-xs font-semibold text-indigo-600 truncate" title={universityName}>
+                  {universityName}
+                </span>
+              </div>
             )}
           </div>
-          <button onClick={() => setIsMobileMenuOpen(false)} className="md:hidden p-2 text-slate-400 hover:bg-slate-50 rounded-lg"><X className="w-5 h-5" /></button>
+          <button onClick={() => setIsMobileMenuOpen(false)} className="md:hidden p-2 -mr-2 text-slate-400 hover:bg-slate-50 rounded-lg shrink-0"><X className="w-5 h-5" /></button>
         </div>
 
         <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
@@ -237,7 +308,7 @@ export default function UniAdminDashboard() {
             <div className="p-4 md:p-8 lg:px-12 lg:py-10 max-w-7xl mx-auto animate-in fade-in duration-500 slide-in-from-bottom-4">
               <div className="mb-8">
                 <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">Current Students</h2>
-                <p className="text-slate-500 mt-2 text-sm">Manage enrolled students at your university.</p>
+                <p className="text-slate-500 mt-2 text-sm">Manage enrolled students at {universityName}.</p>
               </div>
 
               <div className="bg-white p-2 rounded-2xl border border-slate-200 mb-8 shadow-sm focus-within:ring-2 focus-within:ring-indigo-500 transition-all flex items-center">
@@ -258,7 +329,7 @@ export default function UniAdminDashboard() {
                   {displayedStudents.map((student) => (
                     <div key={student._id} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-slate-300 transition-all duration-200 flex flex-col relative group">
                       <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => handleDeleteStudent(student._id)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100" title="Remove Student">
+                        <button onClick={() => confirmDeleteStudent(student._id)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100" title="Remove Student">
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
@@ -294,7 +365,7 @@ export default function UniAdminDashboard() {
             <div className="p-4 md:p-8 lg:px-12 lg:py-10 max-w-7xl mx-auto animate-in fade-in duration-500 slide-in-from-bottom-4">
               <div className="mb-8">
                 <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">Verification Requests</h2>
-                <p className="text-slate-500 mt-2 text-sm">Review and approve new alumni registrations.</p>
+                <p className="text-slate-500 mt-2 text-sm">Review and approve new alumni registrations for {universityName}.</p>
               </div>
 
               <div className="bg-white p-2 rounded-2xl border border-slate-200 mb-8 shadow-sm focus-within:ring-2 focus-within:ring-indigo-500 transition-all flex items-center">
@@ -337,7 +408,7 @@ export default function UniAdminDashboard() {
                          <button onClick={() => openProfile(alumni)} className="flex items-center justify-center gap-1.5 py-2 bg-slate-50 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl text-sm font-bold transition-colors border border-slate-200 hover:border-indigo-200">
                            <Eye className="w-4 h-4" /> Review
                          </button>
-                         <button onClick={() => handleVerify(alumni._id)} className="flex items-center justify-center gap-1.5 py-2 bg-indigo-600 text-white hover:bg-indigo-700 rounded-xl text-sm font-bold transition-colors shadow-sm focus:ring-2 focus:ring-offset-2 focus:ring-indigo-600">
+                         <button onClick={() => confirmVerify(alumni._id)} className="flex items-center justify-center gap-1.5 py-2 bg-indigo-600 text-white hover:bg-indigo-700 rounded-xl text-sm font-bold transition-colors shadow-sm focus:ring-2 focus:ring-offset-2 focus:ring-indigo-600">
                            <CheckCircle2 className="w-4 h-4" /> Approve
                          </button>
                       </div>
@@ -352,7 +423,7 @@ export default function UniAdminDashboard() {
             <div className="p-4 md:p-8 lg:px-12 lg:py-10 max-w-7xl mx-auto animate-in fade-in duration-500 slide-in-from-bottom-4">
               <div className="mb-8">
                 <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">Verified Alumni</h2>
-                <p className="text-slate-500 mt-2 text-sm">Manage approved graduates in your network.</p>
+                <p className="text-slate-500 mt-2 text-sm">Manage approved graduates in your {universityName} network.</p>
               </div>
 
               <div className="bg-white p-2 rounded-2xl border border-slate-200 mb-8 shadow-sm focus-within:ring-2 focus-within:ring-indigo-500 transition-all flex items-center">
@@ -377,7 +448,7 @@ export default function UniAdminDashboard() {
                         <button onClick={() => openProfile(alumni)} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="View Profile">
                           <Eye className="w-4 h-4" />
                         </button>
-                        <button onClick={() => handleReject(alumni._id, true)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Revoke & Remove">
+                        <button onClick={() => confirmReject(alumni._id, true)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Revoke & Remove">
                           <XCircle className="w-4 h-4" />
                         </button>
                       </div>
@@ -486,14 +557,36 @@ export default function UniAdminDashboard() {
             </div>
 
             <div className="p-4 border-t border-slate-100 bg-slate-50/50 flex flex-col-reverse sm:flex-row justify-end gap-3 shrink-0">
-              <button onClick={() => handleReject(selectedProfile._id, selectedProfile.is_verified)} className="px-5 py-2.5 text-sm font-bold text-red-600 bg-white border border-red-200 hover:bg-red-50 hover:border-red-300 rounded-xl transition-colors">
+              <button onClick={() => confirmReject(selectedProfile._id, selectedProfile.is_verified)} className="px-5 py-2.5 text-sm font-bold text-red-600 bg-white border border-red-200 hover:bg-red-50 hover:border-red-300 rounded-xl transition-colors">
                 {selectedProfile.is_verified ? "Revoke & Delete" : "Reject Application"}
               </button>
               {!selectedProfile.is_verified && (
-                <button onClick={() => handleVerify(selectedProfile._id)} className="px-5 py-2.5 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors shadow-sm focus:ring-2 focus:ring-offset-2 focus:ring-indigo-600 flex items-center justify-center gap-2">
+                <button onClick={() => confirmVerify(selectedProfile._id)} className="px-5 py-2.5 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors shadow-sm focus:ring-2 focus:ring-offset-2 focus:ring-indigo-600 flex items-center justify-center gap-2">
                   <CheckCircle2 className="w-4 h-4" /> Approve & Verify
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmModal.isOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6">
+              <div className={`w-12 h-12 rounded-full ${confirmModal.iconBg} flex items-center justify-center mb-4`}>
+                <confirmModal.icon className={`w-6 h-6 ${confirmModal.iconColor}`} />
+              </div>
+              <h3 className="text-xl font-bold text-slate-900 mb-2">{confirmModal.title}</h3>
+              <p className="text-slate-500 text-sm font-medium leading-relaxed">{confirmModal.message}</p>
+            </div>
+            <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+              <button onClick={() => setConfirmModal({ ...confirmModal, isOpen: false })} className="px-4 py-2 text-sm font-bold text-slate-600 bg-white border border-slate-200 hover:bg-slate-100 rounded-xl transition-colors">
+                Cancel
+              </button>
+              <button onClick={confirmModal.onConfirm} className={`px-4 py-2 text-sm font-bold text-white ${confirmModal.confirmBg} rounded-xl transition-colors shadow-sm`}>
+                {confirmModal.confirmText}
+              </button>
             </div>
           </div>
         </div>

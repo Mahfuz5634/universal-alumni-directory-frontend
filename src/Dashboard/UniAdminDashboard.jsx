@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Search,
   GraduationCap,
@@ -17,14 +16,11 @@ import {
   Eye,
   Trash2,
   XCircle,
-  Filter,
-  Check,
   Briefcase,
   User,
   School,
   Mail,
   Phone,
-  IdCard,
   Calendar,
 } from "lucide-react";
 
@@ -32,18 +28,7 @@ import { useAuth } from "../context/authContext";
 import api from "../services/api";
 
 const LinkedinIcon = ({ className }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="18"
-    height="18"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-  >
+  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"></path>
     <rect x="2" y="9" width="4" height="12"></rect>
     <circle cx="4" cy="4" r="2"></circle>
@@ -51,18 +36,7 @@ const LinkedinIcon = ({ className }) => (
 );
 
 const GithubIcon = ({ className }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="18"
-    height="18"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-  >
+  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"></path>
     <path d="M9 18c-4.51 2-5-2-7-2"></path>
   </svg>
@@ -70,182 +44,110 @@ const GithubIcon = ({ className }) => (
 
 export default function UniAdminDashboard() {
   const { user, logout } = useAuth();
-  const navigate = useNavigate();
-
-  // Layout States
-  const [activeTab, setActiveTab] = useState("profile");
+  const [activeTab, setActiveTab] = useState("students");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [message, setMessage] = useState({ type: "", text: "" });
 
-  // Data States
-  const [universityName, setUniversityName] = useState("Loading...");
-  const [alumniList, setAlumniList] = useState([]);
-  const [studentList, setStudentList] = useState([]);
-  const [directory, setDirectory] = useState([]);
-
-  const [managementFilter, setManagementFilter] = useState("pending");
-
-  // Modals & Filters
-  const [selectedProfile, setSelectedProfile] = useState(null);
+  const [students, setStudents] = useState([]);
+  const [pendingAlumni, setPendingAlumni] = useState([]);
+  const [verifiedAlumni, setVerifiedAlumni] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [filters, setFilters] = useState({
-    department: "",
-    graduation_year: "",
-    company: "",
-  });
 
-  const adminInitial = (user?.name || "A").charAt(0).toUpperCase();
+  const [studentSearch, setStudentSearch] = useState("");
+  const [pendingSearch, setPendingSearch] = useState("");
+  const [verifiedSearch, setVerifiedSearch] = useState("");
 
-  const showMsg = (type, text) => {
-    setMessage({ type, text });
-    setTimeout(() => setMessage({ type: "", text: "" }), 4000);
-  };
+  const [selectedProfile, setSelectedProfile] = useState(null);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
-  const handleLogout = () => {
-    logout();
-    navigate("/");
-  };
+  const userInitial = (user?.name || "A").charAt(0).toUpperCase();
 
-  useEffect(() => {
-    const fetchUniversityInfo = async () => {
-      try {
-        const response = await api.get("/universities");
-        const foundUni = response.data.find(
-          (uni) => uni._id === user?.university_id,
-        );
-        setUniversityName(foundUni ? foundUni.name : "University Not Found");
-      } catch (err) {
-        console.error("Error fetching universities:", err);
-        setUniversityName("Unknown University");
-      }
-    };
-
-    if (user?.university_id) {
-      fetchUniversityInfo();
-    }
-  }, [user?.university_id]);
-
-  const fetchAlumniList = async () => {
+  const fetchDashboardData = async () => {
     setIsLoading(true);
     try {
-      const res = await api.get("/directory");
-      setAlumniList(res.data || []);
-    } catch (err) {
-      showMsg("error", "Failed to fetch alumni records.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+      const [studentsRes, directoryRes] = await Promise.all([
+        api.get("/admin/uni/all-students"),
+        api.get("/directory")
+      ]);
 
-  const fetchStudentList = async () => {
-    setIsLoading(true);
-    try {
-      const res = await api.get("/admin/uni/all-students");
-      setStudentList(res.data || []);
+      setStudents(studentsRes.data || []);
+      
+      const allAlumni = directoryRes.data || [];
+      setPendingAlumni(allAlumni.filter(a => a.role === "alumni" && !a.is_verified));
+      setVerifiedAlumni(allAlumni.filter(a => a.role === "alumni" && a.is_verified));
     } catch (err) {
-      showMsg("error", "Failed to fetch student records.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const fetchDirectory = async () => {
-    setIsLoading(true);
-    try {
-      const params = new URLSearchParams();
-      if (filters.department) params.append("department", filters.department);
-      if (filters.graduation_year)
-        params.append("graduation_year", filters.graduation_year);
-      if (filters.company) params.append("company", filters.company);
-
-      const res = await api.get(`/directory?${params.toString()}`);
-      // Ensure only verified alumni are in the directory (fallback if backend doesn't filter)
-      const verifiedOnly = (res.data || []).filter((a) => a.is_verified);
-      setDirectory(verifiedOnly);
-    } catch (err) {
-      showMsg("error", "Failed to fetch directory.");
+      console.error("Failed to fetch dashboard data", err);
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    if (activeTab === "alumni-management") fetchAlumniList();
-    if (activeTab === "student-management") fetchStudentList();
-    if (activeTab === "directory") fetchDirectory();
-  }, [activeTab]);
+    fetchDashboardData();
+  }, [user]);
 
-  // --- ACTIONS ---
+  const displayedStudents = useMemo(() => {
+    return students.filter(s => 
+      s.name?.toLowerCase().includes(studentSearch.toLowerCase()) ||
+      s.department?.toLowerCase().includes(studentSearch.toLowerCase())
+    );
+  }, [students, studentSearch]);
+
+  const displayedPending = useMemo(() => {
+    return pendingAlumni.filter(a => 
+      a.name?.toLowerCase().includes(pendingSearch.toLowerCase()) ||
+      a.department?.toLowerCase().includes(pendingSearch.toLowerCase())
+    );
+  }, [pendingAlumni, pendingSearch]);
+
+  const displayedVerified = useMemo(() => {
+    return verifiedAlumni.filter(a => 
+      a.name?.toLowerCase().includes(verifiedSearch.toLowerCase()) ||
+      a.department?.toLowerCase().includes(verifiedSearch.toLowerCase())
+    );
+  }, [verifiedAlumni, verifiedSearch]);
+
   const handleVerify = async (id) => {
     try {
       await api.put(`/admin/uni/verify/${id}`);
-      setAlumniList((prev) =>
-        prev.map((a) => (a._id === id ? { ...a, is_verified: true } : a)),
-      );
-      if (selectedProfile && selectedProfile._id === id) {
-        setSelectedProfile((prev) => ({ ...prev, is_verified: true }));
-      }
-      showMsg("success", "Alumni successfully verified.");
+      setIsProfileModalOpen(false);
+      fetchDashboardData();
     } catch (err) {
-      showMsg("error", "Failed to verify alumni.");
+      console.error("Failed to verify", err);
     }
   };
 
-  const handleUnverify = async (id) => {
-    try {
-      await api.put(`/admin/uni/unverify/${id}`);
-      setAlumniList((prev) =>
-        prev.map((a) => (a._id === id ? { ...a, is_verified: false } : a)),
-      );
+  const handleReject = async (id, isVerified = false) => {
+    const message = isVerified 
+      ? "Are you sure you want to revoke verification and remove this alumni?" 
+      : "Are you sure you want to reject and delete this request?";
+    if (!window.confirm(message)) return;
 
-      // Update modal state if open
-      if (selectedProfile && selectedProfile._id === id) {
-        setSelectedProfile((prev) => ({ ...prev, is_verified: false }));
+    try {
+      if (isVerified) {
+        await api.put(`/admin/uni/unverify/${id}`);
       }
-      showMsg("success", "Alumni verification revoked.");
-    } catch (err) {
-      showMsg("error", "Failed to revoke verification.");
-    }
-  };
-
-  const handleDeleteAlumni = async (id) => {
-    if (
-      !window.confirm(
-        "Are you sure you want to permanently delete this alumni?",
-      )
-    )
-      return;
-    try {
       await api.delete(`/admin/uni/alumni/${id}`);
-      setAlumniList((prev) => prev.filter((a) => a._id !== id));
-      if (selectedProfile && selectedProfile._id === id)
-        setSelectedProfile(null);
-      showMsg("success", "Alumni deleted permanently.");
+      setIsProfileModalOpen(false);
+      fetchDashboardData();
     } catch (err) {
-      showMsg("error", "Failed to delete alumni.");
+      console.error("Failed to reject/delete", err);
     }
   };
 
   const handleDeleteStudent = async (id) => {
-    if (!window.confirm("Are you sure you want to remove this student?"))
-      return;
+    if (!window.confirm("Are you sure you want to remove this student?")) return;
     try {
       await api.delete(`/admin/uni/student/${id}`);
-      setStudentList((prev) => prev.filter((s) => s._id !== id));
-      showMsg("success", "Student record deleted.");
+      fetchDashboardData();
     } catch (err) {
-      showMsg("error", "Failed to delete student.");
+      console.error("Failed to delete student", err);
     }
   };
 
-  const viewProfile = async (id) => {
-    try {
-      const res = await api.get(`/alumni/profile/${id}`);
-      setSelectedProfile(res.data);
-    } catch (err) {
-      showMsg("error", "Failed to fetch profile details.");
-    }
+  const openProfile = (profile) => {
+    setSelectedProfile(profile);
+    setIsProfileModalOpen(true);
   };
 
   const handleNavigation = (tab) => {
@@ -253,632 +155,253 @@ export default function UniAdminDashboard() {
     setIsMobileMenuOpen(false);
   };
 
-  const handleFilterChange = (e) => {
-    setFilters({ ...filters, [e.target.name]: e.target.value });
+  const NavItem = ({ id, icon: Icon, label, badge }) => {
+    const isActive = activeTab === id;
+    return (
+      <button
+        onClick={() => handleNavigation(id)}
+        className={`w-full flex items-center relative py-3 px-4 rounded-xl transition-all duration-200 group ${
+          isActive
+            ? "bg-indigo-50/80 text-indigo-700 font-semibold shadow-sm"
+            : "text-slate-500 hover:bg-slate-100/80 hover:text-slate-900 font-medium"
+        } ${isSidebarCollapsed ? "justify-center" : "justify-between"}`}
+      >
+        {isActive && !isSidebarCollapsed && (
+          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-8 bg-indigo-600 rounded-r-full" />
+        )}
+        <div className="flex items-center">
+          <Icon className={`w-5 h-5 shrink-0 transition-transform duration-200 ${isActive ? "text-indigo-600 scale-110" : "text-slate-400 group-hover:text-slate-600"} ${!isSidebarCollapsed && "mr-3"}`} />
+          {!isSidebarCollapsed && <span className="whitespace-nowrap tracking-wide">{label}</span>}
+        </div>
+        {!isSidebarCollapsed && badge > 0 && (
+          <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${isActive ? "bg-indigo-200 text-indigo-800" : "bg-slate-200 text-slate-600"}`}>
+            {badge}
+          </span>
+        )}
+      </button>
+    );
   };
 
-  const displayedAlumniList = alumniList.filter((alumni) =>
-    managementFilter === "pending" ? !alumni.is_verified : alumni.is_verified,
-  );
-
   return (
-    <div className="flex h-screen bg-slate-50 font-sans text-slate-900 overflow-hidden">
+    <div className="flex h-screen bg-[#F8FAFC] font-sans text-slate-900 overflow-hidden relative">
+      
       {isMobileMenuOpen && (
-        <div
-          className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 md:hidden transition-opacity"
-          onClick={() => setIsMobileMenuOpen(false)}
-        />
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 md:hidden transition-opacity" onClick={() => setIsMobileMenuOpen(false)} />
       )}
 
-      <aside
-        className={`fixed inset-y-0 left-0 z-50 bg-white flex flex-col h-full border-r border-slate-200 transform transition-all duration-300 ease-in-out md:relative ${
-          isMobileMenuOpen
-            ? "translate-x-0 shadow-2xl w-72"
-            : "-translate-x-full md:translate-x-0"
-        } ${isSidebarCollapsed ? "md:w-20" : "md:w-72"}`}
-      >
-        <button
-          onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-          className="hidden md:flex absolute -right-3 top-10 w-6 h-6 bg-white border border-slate-200 rounded-full items-center justify-center text-slate-400 hover:text-indigo-600 shadow-sm z-50 transition-transform hover:scale-105"
-        >
-          {isSidebarCollapsed ? (
-            <ChevronRight className="w-4 h-4" />
-          ) : (
-            <ChevronLeft className="w-4 h-4" />
-          )}
+      <aside className={`fixed inset-y-0 left-0 z-40 bg-white flex flex-col h-full border-r border-slate-200 transform transition-all duration-300 ease-in-out md:relative ${isMobileMenuOpen ? "translate-x-0 shadow-2xl w-72" : "-translate-x-full md:translate-x-0"} ${isSidebarCollapsed ? "md:w-20" : "md:w-72"}`}>
+        
+        <button onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} className="hidden md:flex absolute -right-3 top-8 w-6 h-6 bg-white border border-slate-200 rounded-full items-center justify-center text-slate-400 hover:text-indigo-600 shadow-sm z-50 transition-transform hover:scale-105">
+          {isSidebarCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
         </button>
 
-        <div
-          className={`p-6 flex items-center justify-between md:justify-start gap-3 border-b border-slate-100 ${isSidebarCollapsed ? "md:justify-center px-4" : ""}`}
-        >
+        <div className={`p-6 flex items-center justify-between md:justify-start gap-3 border-b border-slate-100 ${isSidebarCollapsed ? "md:justify-center px-4" : ""}`}>
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 shrink-0 bg-slate-900 rounded-lg flex items-center justify-center text-white shadow-sm">
+            <div className="w-9 h-9 shrink-0 bg-gradient-to-br from-indigo-600 to-indigo-800 rounded-xl flex items-center justify-center text-white shadow-md shadow-indigo-200">
               <ShieldCheck className="w-5 h-5" />
             </div>
-            <h1
-              className={`font-bold text-lg tracking-tight text-slate-900 leading-tight transition-opacity duration-200 whitespace-nowrap overflow-hidden ${isSidebarCollapsed ? "md:hidden" : "block"}`}
-            >
-              Uni Portal
-            </h1>
+            {!isSidebarCollapsed && (
+              <h1 className="font-bold text-lg tracking-tight text-slate-900 leading-tight">Uni Admin</h1>
+            )}
           </div>
-          <button
-            onClick={() => setIsMobileMenuOpen(false)}
-            className="md:hidden p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <button onClick={() => setIsMobileMenuOpen(false)} className="md:hidden p-2 text-slate-400 hover:bg-slate-50 rounded-lg"><X className="w-5 h-5" /></button>
         </div>
 
-        <nav className="flex-1 px-4 py-6 space-y-1.5 overflow-y-auto overflow-x-hidden">
-          <p
-            className={`px-3 text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 transition-opacity whitespace-nowrap ${isSidebarCollapsed ? "md:hidden" : "block"}`}
-          >
-            Administration
-          </p>
-
-          <NavItem
-            active={activeTab === "profile"}
-            icon={User}
-            label="My Profile"
-            onClick={() => handleNavigation("profile")}
-            isCollapsed={isSidebarCollapsed}
-          />
-          <NavItem
-            active={activeTab === "alumni-management"}
-            icon={GraduationCap}
-            label="Alumni Management"
-            onClick={() => handleNavigation("alumni-management")}
-            isCollapsed={isSidebarCollapsed}
-          />
-          <NavItem
-            active={activeTab === "student-management"}
-            icon={Users}
-            label="Student Management"
-            onClick={() => handleNavigation("student-management")}
-            isCollapsed={isSidebarCollapsed}
-          />
-          <NavItem
-            active={activeTab === "directory"}
-            icon={Search}
-            label="Alumni Directory"
-            onClick={() => handleNavigation("directory")}
-            isCollapsed={isSidebarCollapsed}
-          />
+        <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
+          {!isSidebarCollapsed && <p className="px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-4">Management</p>}
+          <NavItem id="students" icon={GraduationCap} label="Current Students" badge={students.length} />
+          <NavItem id="pending" icon={Users} label="Verification Requests" badge={pendingAlumni.length} />
+          <NavItem id="verified" icon={CheckCircle2} label="Verified Alumni" badge={verifiedAlumni.length} />
         </nav>
 
-        <div
-          className={`p-4 border-t border-slate-200 bg-slate-50/50 transition-all ${isSidebarCollapsed ? "md:px-2" : ""}`}
-        >
-          <div
-            className={`flex items-center gap-3 mb-4 px-2 ${isSidebarCollapsed ? "md:justify-center" : ""}`}
-          >
-            <div className="w-8 h-8 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center font-bold text-sm shrink-0 border border-indigo-200">
-              {adminInitial}
-            </div>
-            <div
-              className={`flex-1 min-w-0 ${isSidebarCollapsed ? "md:hidden" : "block"}`}
-            >
-              <p
-                className="text-sm font-semibold text-slate-900 truncate"
-                title={user?.name}
-              >
-                {user?.name || "University Admin"}
-              </p>
-              <p
-                className="text-xs text-slate-500 truncate"
-                title={user?.email}
-              >
-                {user?.email}
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={handleLogout}
-            className={`w-full flex items-center justify-center gap-2 py-2.5 text-sm font-medium text-slate-600 bg-white border border-slate-200 hover:bg-red-50 hover:text-red-600 hover:border-red-200 rounded-lg transition-colors shadow-sm ${isSidebarCollapsed ? "px-0" : "px-4"}`}
-          >
+        <div className="p-4 border-t border-slate-100 bg-white">
+          <button onClick={logout} className={`w-full flex items-center justify-center gap-2 py-3 text-sm font-semibold text-slate-600 bg-slate-50 border border-slate-200 hover:bg-red-50 hover:text-red-600 hover:border-red-200 rounded-xl transition-all ${isSidebarCollapsed ? "px-0" : "px-4"}`}>
             <LogOut className="w-4 h-4 shrink-0" />
-            <span
-              className={`whitespace-nowrap ${isSidebarCollapsed ? "md:hidden" : "block"}`}
-            >
-              Sign Out
-            </span>
+            {!isSidebarCollapsed && <span>Sign Out</span>}
           </button>
         </div>
       </aside>
 
-      <main className="flex-1 flex flex-col h-full overflow-hidden relative bg-slate-50">
-        <header className="md:hidden bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between shrink-0 z-30">
+      <main className="flex-1 flex flex-col h-full overflow-hidden relative">
+        <header className="md:hidden bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between shrink-0 z-30 shadow-sm">
           <div className="flex items-center gap-3">
-            <button
-              onClick={() => setIsMobileMenuOpen(true)}
-              className="p-1.5 -ml-1.5 text-slate-600 hover:bg-slate-100 rounded-md transition-colors"
-            >
-              <Menu className="w-5 h-5" />
-            </button>
-            <div className="w-7 h-7 bg-slate-900 rounded-md flex items-center justify-center text-white">
-              <ShieldCheck className="w-4 h-4" />
-            </div>
+            <button onClick={() => setIsMobileMenuOpen(true)} className="p-1.5 -ml-1.5 text-slate-600 hover:bg-slate-100 rounded-md"><Menu className="w-5 h-5" /></button>
+            <div className="w-7 h-7 bg-indigo-600 rounded-md flex items-center justify-center text-white"><ShieldCheck className="w-4 h-4" /></div>
           </div>
-          <div className="w-8 h-8 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center font-bold text-sm border border-indigo-200">
-            {adminInitial}
-          </div>
+          <div className="w-8 h-8 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center font-bold text-sm border border-indigo-200">{userInitial}</div>
         </header>
 
-        {message.text && (
-          <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 w-full max-w-md px-4 animate-in fade-in slide-in-from-top-4">
-            <div
-              className={`p-4 rounded-lg border shadow-lg flex items-center gap-3 ${
-                message.type === "error"
-                  ? "bg-red-50 border-red-200 text-red-800"
-                  : "bg-green-50 border-green-200 text-green-800"
-              }`}
-            >
-              {message.type === "error" ? (
-                <XCircle className="w-5 h-5 shrink-0" />
-              ) : (
-                <CheckCircle2 className="w-5 h-5 shrink-0" />
-              )}
-              <span className="text-sm font-medium">{message.text}</span>
-            </div>
-          </div>
-        )}
-
-        <div className="flex-1 overflow-y-auto">
-          {activeTab === "profile" && (
-            <div className="p-4 md:p-8 lg:px-12 lg:py-10 max-w-5xl mx-auto animate-in fade-in duration-300">
-              <header className="mb-8 pt-2 md:pt-0">
-                <h2 className="text-2xl font-bold text-slate-900">
-                  Admin Dashboard
-                </h2>
-                <p className="text-slate-500 mt-1 text-sm">
-                  Manage your university identity and portal settings.
-                </p>
-              </header>
-
-              {user && (
-                <div className="space-y-6">
-                  <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                    <div className="h-32 bg-slate-900 relative">
-                      <div className="absolute top-4 right-4 px-3 py-1 bg-white/10 backdrop-blur-sm rounded-md text-slate-300 text-xs font-semibold tracking-wider border border-white/10">
-                        ID:{" "}
-                        {user.university_id?.slice(-6).toUpperCase() || "ADMIN"}
-                      </div>
-                    </div>
-
-                    <div className="px-6 md:px-8 pb-8 relative">
-                      <div className="w-24 h-24 bg-white rounded-xl p-1 shadow-sm absolute -top-12 border border-slate-200">
-                        <div className="w-full h-full bg-slate-50 rounded-lg flex items-center justify-center font-bold text-slate-400 text-3xl">
-                          {adminInitial}
-                        </div>
-                      </div>
-
-                      <div className="pt-16 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                        <div>
-                          <h3 className="text-2xl font-bold text-slate-900 tracking-tight">
-                            {user.name || "University Admin"}
-                          </h3>
-                          <div className="flex items-center gap-2 text-slate-500 mt-1.5 text-sm">
-                            <Mail className="w-4 h-4 text-slate-400" />
-                            <span>{user.email}</span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 bg-indigo-50 text-indigo-700 px-3 py-1.5 rounded-md text-xs font-semibold border border-indigo-200">
-                          <ShieldCheck className="w-4 h-4 text-indigo-600" />
-                          Official Admin
-                        </div>
-                      </div>
-
-                      <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-4 border-t border-slate-100 pt-8">
-                        <div className="flex items-start gap-3">
-                          <div className="p-2 bg-slate-50 rounded-md border border-slate-100 text-slate-500">
-                            <School className="w-5 h-5" />
-                          </div>
-                          <div>
-                            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-0.5">
-                              Institution
-                            </p>
-                            <p className="text-sm font-medium text-slate-900 leading-tight">
-                              {universityName}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="flex items-start gap-3">
-                          <div className="p-2 bg-slate-50 rounded-md border border-slate-100 text-slate-500">
-                            <Briefcase className="w-5 h-5" />
-                          </div>
-                          <div>
-                            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-0.5">
-                              Role
-                            </p>
-                            <p className="text-sm font-medium text-slate-900 leading-tight">
-                              Portal Administrator
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="flex items-start gap-3">
-                          <div className="p-2 bg-slate-50 rounded-md border border-slate-100 text-slate-500">
-                            <CheckCircle2 className="w-5 h-5" />
-                          </div>
-                          <div>
-                            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-0.5">
-                              Access Level
-                            </p>
-                            <p className="text-sm font-medium text-slate-900 leading-tight">
-                              Full Dashboard Access
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* --- TAB: ALUMNI MANAGEMENT --- */}
-          {activeTab === "alumni-management" && (
-            <div className="p-4 md:p-8 lg:px-12 lg:py-10 max-w-7xl mx-auto animate-in fade-in duration-300">
-              <header className="mb-6 pt-2 md:pt-0 flex flex-col md:flex-row md:items-end justify-between gap-4">
-                <div>
-                  <h2 className="text-2xl font-bold text-slate-900">
-                    Alumni Management
-                  </h2>
-                  <p className="text-slate-500 mt-1 text-sm">
-                    Review pending verification requests and manage existing
-                    alumni.
-                  </p>
-                </div>
-
-                <div className="flex bg-slate-200/50 p-1 rounded-lg shrink-0">
-                  <button
-                    onClick={() => setManagementFilter("pending")}
-                    className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${managementFilter === "pending" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
-                  >
-                    Pending Requests
-                  </button>
-                  <button
-                    onClick={() => setManagementFilter("verified")}
-                    className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${managementFilter === "verified" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
-                  >
-                    Verified Alumni
-                  </button>
-                </div>
-              </header>
-
-              <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                {isLoading ? (
-                  <div className="h-64 flex flex-col items-center justify-center text-slate-500 space-y-4">
-                    <div className="w-8 h-8 border-2 border-slate-200 border-t-indigo-600 rounded-full animate-spin"></div>
-                    <p className="text-sm font-medium">Loading records...</p>
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                      <thead className="bg-slate-50/80 border-b border-slate-200">
-                        <tr>
-                          <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                            Alumni Details
-                          </th>
-                          <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                            Academic Info
-                          </th>
-                          <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                            Status
-                          </th>
-                          <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-right">
-                            Actions
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {displayedAlumniList.map((alumni) => (
-                          <tr
-                            key={alumni._id}
-                            className="hover:bg-slate-50/50 transition-colors"
-                          >
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 bg-slate-100 text-slate-600 rounded-lg flex items-center justify-center font-bold text-sm border border-slate-200">
-                                  {alumni.name.charAt(0).toUpperCase()}
-                                </div>
-                                <div>
-                                  <div className="text-sm font-semibold text-slate-900">
-                                    {alumni.name}
-                                  </div>
-                                  <div className="text-xs text-slate-500">
-                                    {alumni.email}
-                                  </div>
-                                </div>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm text-slate-900 font-medium">
-                                {alumni.department}
-                              </div>
-                              <div className="text-xs text-slate-500">
-                                Class of {alumni.graduation_year}
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              {alumni.is_verified ? (
-                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-200">
-                                  <CheckCircle2 className="w-3.5 h-3.5" />{" "}
-                                  Verified
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
-                                  Pending
-                                </span>
-                              )}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-right">
-                              <div className="flex justify-end gap-2">
-                                <button
-                                  onClick={() => viewProfile(alumni._id)}
-                                  className="px-3 py-1.5 text-xs font-medium bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-indigo-600 rounded-md transition-colors flex items-center gap-1.5 shadow-sm"
-                                >
-                                  <Eye className="w-4 h-4" /> Review
-                                </button>
-
-                                <button
-                                  onClick={() => handleDeleteAlumni(alumni._id)}
-                                  className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
-                                  title="Remove Account"
-                                >
-                                  <Trash2 className="w-5 h-5" />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                        {displayedAlumniList.length === 0 && (
-                          <tr>
-                            <td
-                              colSpan="4"
-                              className="px-6 py-12 text-center text-sm text-slate-500"
-                            >
-                              <Users className="w-8 h-8 text-slate-300 mx-auto mb-3" />
-                              <p>No {managementFilter} alumni found.</p>
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* --- TAB: STUDENT MANAGEMENT --- */}
-          {activeTab === "student-management" && (
-            <div className="p-4 md:p-8 lg:px-12 lg:py-10 max-w-7xl mx-auto animate-in fade-in duration-300">
-              <header className="mb-8 pt-2 md:pt-0">
-                <h2 className="text-2xl font-bold text-slate-900">
-                  Student Directory
-                </h2>
-                <p className="text-slate-500 mt-1 text-sm">
-                  Manage current student records connected to the portal.
-                </p>
-              </header>
-
-              <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                {isLoading ? (
-                  <div className="h-64 flex flex-col items-center justify-center text-slate-500 space-y-4">
-                    <div className="w-8 h-8 border-2 border-slate-200 border-t-indigo-600 rounded-full animate-spin"></div>
-                    <p className="text-sm font-medium">
-                      Loading student records...
-                    </p>
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                      <thead className="bg-slate-50/80 border-b border-slate-200">
-                        <tr>
-                          <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                            Student Info
-                          </th>
-                          <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                            Academic Details
-                          </th>
-                          <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-right">
-                            Action
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {studentList.map((student) => (
-                          <tr
-                            key={student._id}
-                            className="hover:bg-slate-50/50 transition-colors"
-                          >
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center font-bold text-sm border border-indigo-100">
-                                  {student.name.charAt(0).toUpperCase()}
-                                </div>
-                                <div>
-                                  <div className="text-sm font-semibold text-slate-900">
-                                    {student.name}
-                                  </div>
-                                  <div className="text-xs text-slate-500">
-                                    {student.email}
-                                  </div>
-                                </div>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm text-slate-900 font-medium">
-                                {student.student_id}
-                              </div>
-                              <div className="text-xs text-slate-500">
-                                {student.department}
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-right">
-                              <button
-                                onClick={() => handleDeleteStudent(student._id)}
-                                className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
-                                title="Remove Student"
-                              >
-                                <Trash2 className="w-5 h-5" />
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                        {studentList.length === 0 && (
-                          <tr>
-                            <td
-                              colSpan="3"
-                              className="px-6 py-12 text-center text-sm text-slate-500"
-                            >
-                              <Users className="w-8 h-8 text-slate-300 mx-auto mb-3" />
-                              <p>No student records found.</p>
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* --- TAB: DIRECTORY --- */}
-          {activeTab === "directory" && (
-            <div className="p-4 md:p-8 lg:px-12 lg:py-10 max-w-7xl mx-auto animate-in fade-in duration-300">
-              <header className="mb-8 pt-2 md:pt-0">
-                <h2 className="text-2xl font-bold text-slate-900">
-                  Alumni Directory
-                </h2>
-                <p className="text-slate-500 mt-1 text-sm">
-                  Browse all verified alumni profiles across the university.
-                </p>
-              </header>
-
-              {/* Filters */}
-              <div className="bg-white p-3 rounded-xl border border-slate-200 mb-8 flex flex-col md:flex-row gap-4 shadow-sm items-end">
-                <div className="flex-[2] w-full">
-                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5 pl-1">
-                    Search Company
-                  </label>
-                  <div className="relative">
-                    <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
-                    <input
-                      name="company"
-                      placeholder="Search by company name (e.g. Google)..."
-                      onChange={handleFilterChange}
-                      className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
-                    />
-                  </div>
-                </div>
-
-                {/* Department Dropdown */}
-                <div className="flex-1 w-full">
-                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5 pl-1">
-                    Department
-                  </label>
-                  <select
-                    name="department"
-                    onChange={handleFilterChange}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all cursor-pointer"
-                  >
-                    <option value="">All Departments</option>
-                    <option value="CSE">CSE</option>
-                    <option value="EEE">EEE</option>
-                    <option value="BBA">BBA</option>
-                    <option value="Civil">Civil</option>
-                    <option value="Mechanical">Mechanical</option>
-                    <option value="Architecture">Architecture</option>
-                    <option value="English">English</option>
-                    <option value="Law">Law</option>
-                  </select>
-                </div>
+        <div className="flex-1 overflow-y-auto bg-slate-50 pb-12">
+          
+          {activeTab === "students" && (
+            <div className="p-4 md:p-8 lg:px-12 lg:py-10 max-w-7xl mx-auto animate-in fade-in duration-500 slide-in-from-bottom-4">
+              <div className="mb-8">
+                <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">Current Students</h2>
+                <p className="text-slate-500 mt-2 text-sm">Manage enrolled students at your university.</p>
               </div>
 
-              {/* Directory Grid */}
+              <div className="bg-white p-2 rounded-2xl border border-slate-200 mb-8 shadow-sm focus-within:ring-2 focus-within:ring-indigo-500 transition-all flex items-center">
+                <Search className="w-5 h-5 text-slate-400 absolute ml-4" />
+                <input type="text" placeholder="Search by name or department..." className="w-full pl-12 pr-4 py-2 bg-transparent border-none focus:ring-0 text-sm outline-none placeholder:text-slate-400 font-medium" value={studentSearch} onChange={(e) => setStudentSearch(e.target.value)} />
+              </div>
+
               {isLoading ? (
-                <div className="h-64 flex flex-col items-center justify-center text-slate-500 space-y-4">
-                  <div className="w-8 h-8 border-2 border-slate-200 border-t-indigo-600 rounded-full animate-spin"></div>
-                  <p className="text-sm font-medium">Loading directory...</p>
-                </div>
-              ) : directory.length === 0 ? (
-                <div className="p-12 bg-white rounded-xl border border-slate-200 text-center shadow-sm">
-                  <Users className="w-8 h-8 text-slate-300 mx-auto mb-3" />
-                  <h3 className="text-lg font-semibold text-slate-900">
-                    No Verified Alumni Found
-                  </h3>
-                  <p className="text-sm text-slate-500 mt-1">
-                    Try modifying your filter criteria.
-                  </p>
+                <div className="h-64 flex items-center justify-center"><div className="w-10 h-10 border-4 border-slate-100 border-t-indigo-600 rounded-full animate-spin"></div></div>
+              ) : displayedStudents.length === 0 ? (
+                <div className="p-16 bg-white rounded-3xl border border-dashed border-slate-300 text-center">
+                  <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4"><GraduationCap className="w-8 h-8 text-slate-400" /></div>
+                  <h3 className="text-xl font-bold text-slate-900 mb-1">No Students Found</h3>
+                  <p className="text-slate-500 text-sm">Try adjusting your search query.</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                  {directory.map((alumni) => (
-                    <div
-                      key={alumni._id}
-                      className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:border-indigo-200 hover:shadow-md transition-all duration-200 flex flex-col"
-                    >
-                      <div className="flex gap-4 mb-4">
-                        <div className="w-12 h-12 bg-slate-50 text-slate-600 rounded-lg flex items-center justify-center font-bold text-lg border border-slate-200 shrink-0">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {displayedStudents.map((student) => (
+                    <div key={student._id} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-slate-300 transition-all duration-200 flex flex-col relative group">
+                      <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={() => handleDeleteStudent(student._id)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100" title="Remove Student">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                      
+                      <div className="flex gap-4 mb-5">
+                        <div className="w-14 h-14 bg-gradient-to-br from-indigo-50 to-slate-100 text-indigo-700 rounded-xl flex items-center justify-center font-extrabold text-xl border border-indigo-100/50 shrink-0 shadow-inner">
+                          {(student.name || "S").charAt(0).toUpperCase()}
+                        </div>
+                        <div className="flex-1 pr-8 pt-1">
+                          <h4 className="font-bold text-slate-900 text-lg leading-tight mb-1 truncate">{student.name}</h4>
+                          <div className="flex items-center gap-1.5 text-sm text-slate-500 font-medium truncate">
+                            <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" /> <span className="truncate">{student.email}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3 flex-1">
+                        <div className="flex items-center gap-2.5 text-sm text-slate-600">
+                          <School className="w-4 h-4 text-slate-400 shrink-0" /> <span className="font-medium truncate">{student.department || "Dept. N/A"}</span>
+                        </div>
+                        <div className="flex items-center gap-2.5 text-sm text-slate-600">
+                          <Calendar className="w-4 h-4 text-slate-400 shrink-0" /> <span className="font-medium">Class of {student.graduation_year || "N/A"}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === "pending" && (
+            <div className="p-4 md:p-8 lg:px-12 lg:py-10 max-w-7xl mx-auto animate-in fade-in duration-500 slide-in-from-bottom-4">
+              <div className="mb-8">
+                <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">Verification Requests</h2>
+                <p className="text-slate-500 mt-2 text-sm">Review and approve new alumni registrations.</p>
+              </div>
+
+              <div className="bg-white p-2 rounded-2xl border border-slate-200 mb-8 shadow-sm focus-within:ring-2 focus-within:ring-indigo-500 transition-all flex items-center">
+                <Search className="w-5 h-5 text-slate-400 absolute ml-4" />
+                <input type="text" placeholder="Search pending requests..." className="w-full pl-12 pr-4 py-2 bg-transparent border-none focus:ring-0 text-sm outline-none placeholder:text-slate-400 font-medium" value={pendingSearch} onChange={(e) => setPendingSearch(e.target.value)} />
+              </div>
+
+              {isLoading ? (
+                <div className="h-64 flex items-center justify-center"><div className="w-10 h-10 border-4 border-slate-100 border-t-indigo-600 rounded-full animate-spin"></div></div>
+              ) : displayedPending.length === 0 ? (
+                <div className="p-16 bg-white rounded-3xl border border-dashed border-slate-300 text-center">
+                  <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4"><ShieldCheck className="w-8 h-8 text-slate-400" /></div>
+                  <h3 className="text-xl font-bold text-slate-900 mb-1">No Pending Requests</h3>
+                  <p className="text-slate-500 text-sm">All alumni registrations have been processed.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {displayedPending.map((alumni) => (
+                    <div key={alumni._id} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-slate-300 transition-all duration-200 flex flex-col relative">
+                      <div className="flex gap-4 mb-5">
+                        <div className="w-14 h-14 bg-amber-50 text-amber-700 rounded-xl flex items-center justify-center font-extrabold text-xl border border-amber-100/50 shrink-0 shadow-inner">
                           {(alumni.name || "A").charAt(0).toUpperCase()}
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <h4
-                            className="font-bold text-slate-900 text-base truncate"
-                            title={alumni.name}
-                          >
-                            {alumni.name}
-                          </h4>
-                          <p className="text-xs text-slate-500 font-medium mt-0.5">
-                            {alumni.department || "Dept. N/A"} • Class of{" "}
-                            {alumni.graduation_year || "N/A"}
-                          </p>
+                        <div className="flex-1 pt-1">
+                          <h4 className="font-bold text-slate-900 text-lg leading-tight mb-1 truncate">{alumni.name}</h4>
+                          <p className="text-sm text-slate-500 font-medium">Class of {alumni.graduation_year}</p>
                         </div>
                       </div>
 
-                      <div className="mb-5 flex-1 space-y-2">
-                        <div className="flex items-center gap-2 text-sm text-slate-700">
-                          <Briefcase className="w-4 h-4 text-slate-400 shrink-0" />
-                          <span
-                            className="truncate"
-                            title={alumni.position || "Position not specified"}
-                          >
-                            {alumni.position || "Professional"}
-                          </span>
+                      <div className="space-y-3 flex-1 mb-6">
+                        <div className="flex items-center gap-2.5 text-sm text-slate-600">
+                          <School className="w-4 h-4 text-slate-400 shrink-0" /> <span className="font-medium truncate">{alumni.department || "Dept. N/A"}</span>
                         </div>
-                        <div className="flex items-center gap-2 text-sm text-slate-700">
-                          <Building2 className="w-4 h-4 text-slate-400 shrink-0" />
-                          <span
-                            className="truncate"
-                            title={alumni.company || "Company not specified"}
-                          >
-                            {alumni.company || "Company not listed"}
-                          </span>
+                        <div className="flex items-center gap-2.5 text-sm text-slate-600">
+                          <Briefcase className="w-4 h-4 text-slate-400 shrink-0" /> <span className="font-medium truncate">{alumni.position || "N/A"} at {alumni.company || "N/A"}</span>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2 pt-4 border-t border-slate-100 mt-auto">
-                        <button
-                          onClick={() => viewProfile(alumni._id)}
-                          className="flex-1 bg-white border border-slate-200 text-slate-700 text-center py-2 rounded-lg text-sm font-semibold hover:bg-slate-50 hover:text-indigo-600 transition-colors"
-                        >
-                          View Profile
+                      <div className="grid grid-cols-2 gap-2 pt-4 border-t border-slate-100 mt-auto">
+                         <button onClick={() => openProfile(alumni)} className="flex items-center justify-center gap-1.5 py-2 bg-slate-50 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl text-sm font-bold transition-colors border border-slate-200 hover:border-indigo-200">
+                           <Eye className="w-4 h-4" /> Review
+                         </button>
+                         <button onClick={() => handleVerify(alumni._id)} className="flex items-center justify-center gap-1.5 py-2 bg-indigo-600 text-white hover:bg-indigo-700 rounded-xl text-sm font-bold transition-colors shadow-sm focus:ring-2 focus:ring-offset-2 focus:ring-indigo-600">
+                           <CheckCircle2 className="w-4 h-4" /> Approve
+                         </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === "verified" && (
+            <div className="p-4 md:p-8 lg:px-12 lg:py-10 max-w-7xl mx-auto animate-in fade-in duration-500 slide-in-from-bottom-4">
+              <div className="mb-8">
+                <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">Verified Alumni</h2>
+                <p className="text-slate-500 mt-2 text-sm">Manage approved graduates in your network.</p>
+              </div>
+
+              <div className="bg-white p-2 rounded-2xl border border-slate-200 mb-8 shadow-sm focus-within:ring-2 focus-within:ring-indigo-500 transition-all flex items-center">
+                <Search className="w-5 h-5 text-slate-400 absolute ml-4" />
+                <input type="text" placeholder="Search verified alumni..." className="w-full pl-12 pr-4 py-2 bg-transparent border-none focus:ring-0 text-sm outline-none placeholder:text-slate-400 font-medium" value={verifiedSearch} onChange={(e) => setVerifiedSearch(e.target.value)} />
+              </div>
+
+              {isLoading ? (
+                <div className="h-64 flex items-center justify-center"><div className="w-10 h-10 border-4 border-slate-100 border-t-indigo-600 rounded-full animate-spin"></div></div>
+              ) : displayedVerified.length === 0 ? (
+                <div className="p-16 bg-white rounded-3xl border border-dashed border-slate-300 text-center">
+                  <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4"><CheckCircle2 className="w-8 h-8 text-slate-400" /></div>
+                  <h3 className="text-xl font-bold text-slate-900 mb-1">No Verified Alumni</h3>
+                  <p className="text-slate-500 text-sm">Try adjusting your search criteria.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {displayedVerified.map((alumni) => (
+                    <div key={alumni._id} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-slate-300 transition-all duration-200 flex flex-col relative group">
+                      
+                      <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                        <button onClick={() => openProfile(alumni)} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="View Profile">
+                          <Eye className="w-4 h-4" />
                         </button>
-                        {alumni.linkedin_id && (
-                          <a
-                            href={alumni.linkedin_id}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="p-2 bg-white text-slate-500 rounded-lg border border-slate-200 hover:text-[#0A66C2] hover:border-[#0A66C2] transition-colors"
-                          >
-                            <LinkedinIcon />
-                          </a>
-                        )}
+                        <button onClick={() => handleReject(alumni._id, true)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Revoke & Remove">
+                          <XCircle className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      <div className="flex gap-4 mb-5">
+                        <div className="w-14 h-14 bg-gradient-to-br from-indigo-50 to-slate-100 text-indigo-700 rounded-xl flex items-center justify-center font-extrabold text-xl border border-indigo-100/50 shrink-0 shadow-inner">
+                          {(alumni.name || "A").charAt(0).toUpperCase()}
+                        </div>
+                        <div className="flex-1 pr-12 pt-1">
+                          <div className="flex items-start justify-between">
+                             <h4 className="font-bold text-slate-900 text-lg leading-tight mb-1 truncate pr-2">{alumni.name}</h4>
+                             <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" title="Verified" />
+                          </div>
+                          <p className="text-sm text-slate-500 font-medium">Class of {alumni.graduation_year}</p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3 flex-1">
+                        <div className="flex items-center gap-2.5 text-sm text-slate-600">
+                          <School className="w-4 h-4 text-slate-400 shrink-0" /> <span className="font-medium truncate">{alumni.department || "Dept. N/A"}</span>
+                        </div>
+                        <div className="flex items-center gap-2.5 text-sm text-slate-600">
+                          <Briefcase className="w-4 h-4 text-slate-400 shrink-0" /> <span className="font-medium truncate">{alumni.position || "N/A"} at {alumni.company || "N/A"}</span>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -889,171 +412,88 @@ export default function UniAdminDashboard() {
         </div>
       </main>
 
-      {/* --- PROFESSIONAL PROFILE MODAL WITH VERIFY/UNVERIFY ACTIONS --- */}
-      {selectedProfile && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-200 my-auto">
-            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/80">
-              <div className="flex items-center gap-3">
-                <h3 className="font-bold text-slate-900 text-lg">
-                  Alumni Profile Review
-                </h3>
-                {selectedProfile.is_verified ? (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700 border border-green-200">
-                    <CheckCircle2 className="w-3.5 h-3.5" /> Verified
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700 border border-amber-200">
-                    Pending Verification
-                  </span>
-                )}
-              </div>
-              <button
-                onClick={() => setSelectedProfile(null)}
-                className="text-slate-400 hover:text-slate-700 transition-colors bg-white hover:bg-slate-200 rounded-full p-1.5 border border-slate-200"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+      {isProfileModalOpen && selectedProfile && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col relative">
+            
+            <button onClick={() => setIsProfileModalOpen(false)} className="absolute top-4 right-4 z-10 w-8 h-8 bg-black/20 hover:bg-black/40 backdrop-blur-md rounded-full flex items-center justify-center text-white transition-colors">
+              <X className="w-5 h-5" />
+            </button>
 
-            {/* Modal Body */}
-            <div className="p-6 md:p-8">
-              <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 mb-8">
-                <div className="w-24 h-24 bg-indigo-50 rounded-2xl flex items-center justify-center font-bold text-indigo-600 text-4xl border border-indigo-100 shadow-sm shrink-0">
-                  {selectedProfile.name.charAt(0).toUpperCase()}
-                </div>
-                <div className="text-center sm:text-left flex-1">
-                  <h4 className="text-2xl font-bold text-slate-900 tracking-tight">
-                    {selectedProfile.name}
-                  </h4>
-                  <p className="text-slate-500 font-medium mb-3">
-                    {selectedProfile.email}
-                  </p>
-                  <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3">
-                    {selectedProfile.linkedin_id && (
-                      <a
-                        href={selectedProfile.linkedin_id}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-[#0A66C2]/10 text-[#0A66C2] rounded-md text-xs font-semibold hover:bg-[#0A66C2]/20 transition-colors"
-                      >
-                        <LinkedinIcon className="w-3.5 h-3.5" /> LinkedIn
-                      </a>
-                    )}
-                    {selectedProfile.github_id && (
-                      <a
-                        href={selectedProfile.github_id}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 text-slate-700 rounded-md text-xs font-semibold hover:bg-slate-200 transition-colors"
-                      >
-                        <GithubIcon className="w-3.5 h-3.5" /> GitHub
-                      </a>
-                    )}
-                    {selectedProfile.contact_number && (
-                      <span className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 text-slate-600 rounded-md text-xs font-semibold border border-slate-200">
-                        <Phone className="w-3.5 h-3.5" />{" "}
-                        {selectedProfile.contact_number}
-                      </span>
-                    )}
-                  </div>
+            <div className="overflow-y-auto flex-1">
+              <div className="h-40 bg-gradient-to-r from-slate-900 via-indigo-900 to-slate-900 relative">
+                <div className="absolute top-4 left-4 px-3 py-1.5 bg-black/20 backdrop-blur-md rounded-lg text-white/90 text-xs font-bold tracking-widest border border-white/10 shadow-sm flex items-center gap-2">
+                  {selectedProfile.is_verified ? (
+                    <><CheckCircle2 className="w-4 h-4 text-emerald-400" /> Verified</>
+                  ) : (
+                    <><ShieldCheck className="w-4 h-4 text-amber-400" /> Pending Verification</>
+                  )}
                 </div>
               </div>
 
-              {/* Data Grid Section */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <h5 className="text-sm font-bold text-slate-900 border-b border-slate-100 pb-2 flex items-center gap-2">
-                    <GraduationCap className="w-4 h-4 text-indigo-500" />{" "}
-                    Academic Details
-                  </h5>
-                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3">
-                    <div>
-                      <p className="text-xs text-slate-400 font-semibold uppercase tracking-wider mb-0.5">
-                        Student Roll No
-                      </p>
-                      <p className="text-sm font-medium text-slate-900 flex items-center gap-2">
-                        <IdCard className="w-4 h-4 text-slate-400" />{" "}
-                        {selectedProfile.student_roll_no || "N/A"}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-400 font-semibold uppercase tracking-wider mb-0.5">
-                        Department
-                      </p>
-                      <p className="text-sm font-medium text-slate-900 flex items-center gap-2">
-                        <School className="w-4 h-4 text-slate-400" />{" "}
-                        {selectedProfile.department || "N/A"}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-400 font-semibold uppercase tracking-wider mb-0.5">
-                        Graduation Year
-                      </p>
-                      <p className="text-sm font-medium text-slate-900 flex items-center gap-2">
-                        <Calendar className="w-4 h-4 text-slate-400" /> Class of{" "}
-                        {selectedProfile.graduation_year || "N/A"}
-                      </p>
+              <div className="px-8 pb-8 relative">
+                <div className="w-24 h-24 bg-white rounded-2xl p-1.5 shadow-lg absolute -top-12 border border-slate-100">
+                  <div className="w-full h-full bg-indigo-50 rounded-xl flex items-center justify-center font-extrabold text-indigo-600 text-3xl">
+                    {(selectedProfile.name || "A").charAt(0).toUpperCase()}
+                  </div>
+                </div>
+
+                <div className="pt-16 pb-6 border-b border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+                  <div>
+                    <h3 className="text-2xl font-bold text-slate-900">{selectedProfile.name}</h3>
+                    <div className="flex flex-wrap items-center gap-4 mt-2">
+                      <span className="flex items-center gap-1.5 text-sm font-medium text-slate-500"><Mail className="w-4 h-4 text-slate-400" /> {selectedProfile.email}</span>
+                      {selectedProfile.phone && <span className="flex items-center gap-1.5 text-sm font-medium text-slate-500"><Phone className="w-4 h-4 text-slate-400" /> {selectedProfile.phone}</span>}
                     </div>
                   </div>
                 </div>
 
-                {/* Professional Block */}
-                <div className="space-y-4">
-                  <h5 className="text-sm font-bold text-slate-900 border-b border-slate-100 pb-2 flex items-center gap-2">
-                    <Briefcase className="w-4 h-4 text-indigo-500" />{" "}
-                    Professional Details
-                  </h5>
-                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3 h-[180px]">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-6">
+                  <div className="space-y-5">
                     <div>
-                      <p className="text-xs text-slate-400 font-semibold uppercase tracking-wider mb-0.5">
-                        Current Company
-                      </p>
-                      <p className="text-sm font-medium text-slate-900 flex items-center gap-2">
-                        <Building2 className="w-4 h-4 text-slate-400" />{" "}
-                        {selectedProfile.company || "Not Provided"}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-400 font-semibold uppercase tracking-wider mb-0.5">
-                        Position / Job Title
-                      </p>
-                      <p className="text-sm font-medium text-slate-900 flex items-center gap-2">
-                        <User className="w-4 h-4 text-slate-400" />{" "}
-                        {selectedProfile.position || "Not Provided"}
-                      </p>
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Academic Info</p>
+                      <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 space-y-2">
+                        <div className="flex items-center gap-3 text-sm text-slate-700 font-medium"><School className="w-4 h-4 text-indigo-500" /> {selectedProfile.department || "N/A"}</div>
+                        <div className="flex items-center gap-3 text-sm text-slate-700 font-medium"><Calendar className="w-4 h-4 text-indigo-500" /> Class of {selectedProfile.graduation_year || "N/A"}</div>
+                        <div className="flex items-center gap-3 text-sm text-slate-700 font-medium"><User className="w-4 h-4 text-indigo-500" /> Roll: {selectedProfile.student_roll_no || "N/A"}</div>
+                      </div>
                     </div>
                   </div>
+
+                  <div className="space-y-5">
+                    <div>
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Professional Info</p>
+                      <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 space-y-2">
+                        <div className="flex items-center gap-3 text-sm text-slate-700 font-medium"><Building2 className="w-4 h-4 text-indigo-500" /> {selectedProfile.company || "Not provided"}</div>
+                        <div className="flex items-center gap-3 text-sm text-slate-700 font-medium"><Briefcase className="w-4 h-4 text-indigo-500" /> {selectedProfile.position || "Not provided"}</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-6">
+                   <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Social Links</p>
+                   <div className="flex gap-3">
+                     {selectedProfile.linkedin_id ? (
+                        <a href={selectedProfile.linkedin_id} target="_blank" rel="noreferrer" className="flex items-center gap-2 px-4 py-2 bg-slate-50 text-[#0A66C2] rounded-lg text-sm font-semibold border border-slate-200 hover:border-[#0A66C2] transition-colors"><LinkedinIcon className="w-4 h-4" /> LinkedIn</a>
+                     ) : <span className="flex items-center gap-2 px-4 py-2 bg-slate-50 text-slate-400 rounded-lg text-sm font-semibold border border-slate-100"><LinkedinIcon className="w-4 h-4" /> No LinkedIn</span>}
+                     {selectedProfile.github_id ? (
+                        <a href={selectedProfile.github_id} target="_blank" rel="noreferrer" className="flex items-center gap-2 px-4 py-2 bg-slate-50 text-slate-900 rounded-lg text-sm font-semibold border border-slate-200 hover:border-slate-900 transition-colors"><GithubIcon className="w-4 h-4" /> GitHub</a>
+                     ) : <span className="flex items-center gap-2 px-4 py-2 bg-slate-50 text-slate-400 rounded-lg text-sm font-semibold border border-slate-100"><GithubIcon className="w-4 h-4" /> No GitHub</span>}
+                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Modal Footer Actions */}
-            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex flex-col-reverse sm:flex-row justify-between items-center gap-4">
-              <button
-                onClick={() => setSelectedProfile(null)}
-                className="w-full sm:w-auto px-5 py-2.5 bg-white border border-slate-300 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-100 transition-colors shadow-sm"
-              >
-                Close View
+            <div className="p-4 border-t border-slate-100 bg-slate-50/50 flex flex-col-reverse sm:flex-row justify-end gap-3 shrink-0">
+              <button onClick={() => handleReject(selectedProfile._id, selectedProfile.is_verified)} className="px-5 py-2.5 text-sm font-bold text-red-600 bg-white border border-red-200 hover:bg-red-50 hover:border-red-300 rounded-xl transition-colors">
+                {selectedProfile.is_verified ? "Revoke & Delete" : "Reject Application"}
               </button>
-
-              <div className="w-full sm:w-auto flex gap-3">
-                {selectedProfile.is_verified ? (
-                  <button
-                    onClick={() => handleUnverify(selectedProfile._id)}
-                    className="w-full sm:w-auto px-5 py-2.5 bg-amber-50 text-amber-700 border border-amber-200 text-sm font-medium rounded-lg hover:bg-amber-100 transition-colors shadow-sm flex items-center justify-center gap-2"
-                  >
-                    <XCircle className="w-4 h-4" /> Revoke Verification
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => handleVerify(selectedProfile._id)}
-                    className="w-full sm:w-auto px-5 py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors shadow-sm flex items-center justify-center gap-2"
-                  >
-                    <CheckCircle2 className="w-4 h-4" /> Approve & Verify
-                  </button>
-                )}
-              </div>
+              {!selectedProfile.is_verified && (
+                <button onClick={() => handleVerify(selectedProfile._id)} className="px-5 py-2.5 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors shadow-sm focus:ring-2 focus:ring-offset-2 focus:ring-indigo-600 flex items-center justify-center gap-2">
+                  <CheckCircle2 className="w-4 h-4" /> Approve & Verify
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -1061,29 +501,3 @@ export default function UniAdminDashboard() {
     </div>
   );
 }
-
-// --- Sidebar Helper Component ---
-const NavItem = ({ active, label, icon: Icon, onClick, isCollapsed }) => (
-  <button
-    onClick={onClick}
-    className={`w-full flex items-center relative py-2.5 rounded-lg transition-all duration-200 ${
-      active
-        ? "bg-indigo-50 text-indigo-700 font-semibold"
-        : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 font-medium"
-    } ${isCollapsed ? "md:justify-center px-0" : "px-3 justify-between"}`}
-  >
-    <div className={`flex items-center ${isCollapsed ? "" : "gap-3"}`}>
-      <Icon
-        className={`w-5 h-5 shrink-0 ${active ? "text-indigo-600" : "text-slate-400"}`}
-      />
-      <span
-        className={`whitespace-nowrap ${isCollapsed ? "md:hidden" : "block"}`}
-      >
-        {label}
-      </span>
-    </div>
-    {active && !isCollapsed && (
-      <div className="w-1.5 h-1.5 bg-indigo-600 rounded-full shrink-0"></div>
-    )}
-  </button>
-);

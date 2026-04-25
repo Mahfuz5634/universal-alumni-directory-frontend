@@ -15,10 +15,10 @@ import {
   Network,
   Lock,
   ChevronRight,
+  Mail,
 } from "lucide-react";
 import { Link } from "react-router";
 import bg from "../assets/bg.jpg";
-import { Mail } from "lucide-react";
 
 export default function Home() {
   const fadeUp = {
@@ -36,8 +36,7 @@ export default function Home() {
   };
 
   return (
-    <div className="bg-[#fafafa] min-h-screen font-sans text-slate-900 overflow-x-hidden selection:bg-indigo-200 selection:text-indigo-900">
-      {/* Floating Glass Navbar  */}
+    <div className="bg-slate-50 min-h-screen font-sans text-slate-900 overflow-x-hidden selection:bg-indigo-200 selection:text-indigo-900">
       <div className="fixed top-6 inset-x-0 mx-auto max-w-5xl px-4 z-50">
         <nav className="bg-white/80 backdrop-blur-xl border border-white/40 shadow-2xl shadow-indigo-100/20 rounded-full px-6 py-3 flex justify-between items-center">
           <div className="flex items-center gap-2.5">
@@ -88,7 +87,6 @@ export default function Home() {
         </nav>
       </div>
 
-      {/* --- Hero Section --- */}
       <section className="relative isolate pt-40 pb-32 px-6 flex flex-col items-center text-center min-h-[95vh] justify-center overflow-hidden bg-[#0a0a0c]">
         <div
           className="absolute inset-0 h-full w-full bg-cover bg-center bg-no-repeat opacity-40 mix-blend-luminosity"
@@ -157,8 +155,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* --- Bento Grid Features --- */}
-      <section className="py-32 px-6 relative z-10 bg-white">
+      <section className="py-32 px-6 relative z-10 bg-slate-50">
         <div className="max-w-7xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -181,14 +178,13 @@ export default function Home() {
             whileInView="whileInView"
             className="grid grid-cols-1 md:grid-cols-3 gap-8"
           >
-            {/* Feature 1 */}
             <motion.div
               variants={fadeUp}
-              className="md:col-span-2 bg-slate-50 rounded-[2.5rem] p-10 md:p-16 border border-slate-100 shadow-sm relative overflow-hidden group"
+              className="md:col-span-2 bg-white rounded-[2.5rem] p-10 md:p-16 border border-slate-200/60 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group"
             >
-              <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-200/20 rounded-full blur-3xl -mr-20 -mt-20 group-hover:bg-indigo-300/30 transition-all duration-700"></div>
+              <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-100/40 rounded-full blur-3xl -mr-20 -mt-20 group-hover:bg-indigo-200/40 transition-all duration-700"></div>
               <div className="relative z-10">
-                <div className="h-16 w-16 bg-white rounded-2xl flex items-center justify-center mb-8 shadow-sm border border-slate-100">
+                <div className="h-16 w-16 bg-slate-50 rounded-2xl flex items-center justify-center mb-8 shadow-sm border border-slate-100">
                   <Landmark className="w-8 h-8 text-indigo-600" />
                 </div>
                 <h3 className="text-3xl font-bold text-slate-900 mb-4">
@@ -201,10 +197,9 @@ export default function Home() {
               </div>
             </motion.div>
 
-            {/* Feature 2 */}
             <motion.div
               variants={fadeUp}
-              className="bg-white rounded-[2.5rem] p-10 border border-slate-100 shadow-xl shadow-slate-200/20 group"
+              className="bg-white rounded-[2.5rem] p-10 border border-slate-200/60 shadow-sm hover:shadow-md transition-shadow group"
             >
               <div className="h-14 w-14 bg-emerald-50 rounded-2xl flex items-center justify-center mb-6">
                 <ShieldCheck className="w-7 h-7 text-emerald-600" />
@@ -218,10 +213,9 @@ export default function Home() {
               </p>
             </motion.div>
 
-            {/* Feature 3 */}
             <motion.div
               variants={fadeUp}
-              className="bg-white rounded-[2.5rem] p-10 border border-slate-100 shadow-xl shadow-slate-200/20 group"
+              className="bg-white rounded-[2.5rem] p-10 border border-slate-200/60 shadow-sm hover:shadow-md transition-shadow group"
             >
               <div className="h-14 w-14 bg-blue-50 rounded-2xl flex items-center justify-center mb-6">
                 <Search className="w-7 h-7 text-blue-600" />
@@ -235,7 +229,6 @@ export default function Home() {
               </p>
             </motion.div>
 
-            {/* Feature 4 */}
             <motion.div
               variants={fadeUp}
               className="md:col-span-2 bg-slate-900 rounded-[2.5rem] p-10 md:p-16 border border-slate-800 shadow-2xl relative overflow-hidden group"
@@ -261,8 +254,8 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="py-32 px-6">
-        <div className="max-w-6xl mx-auto bg-gradient-to-br from-indigo-600 to-violet-700 rounded-[3.5rem] p-12 md:p-24 text-center relative overflow-hidden shadow-2xl shadow-indigo-500/40">
+      <section className="py-32 px-6 bg-slate-50">
+        <div className="max-w-6xl mx-auto bg-gradient-to-br from-indigo-600 to-violet-700 rounded-[3.5rem] p-12 md:p-24 text-center relative overflow-hidden shadow-2xl shadow-indigo-500/30">
           <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -mr-32 -mt-32"></div>
           <div className="absolute bottom-0 left-0 w-64 h-64 bg-black/10 rounded-full blur-3xl -ml-20 -mb-20"></div>
 
@@ -274,7 +267,7 @@ export default function Home() {
               Deploy your university's secure directory today. Facilitate
               meaningful connections and mentorships.
             </p>
-            <button className="bg-white text-indigo-600 px-12 py-5 rounded-full font-black text-lg hover:shadow-2xl hover:scale-105 transition-all flex items-center gap-3 mx-auto">
+            <button className="bg-white text-indigo-600 px-12 py-5 rounded-full font-black text-lg hover:shadow-xl hover:scale-105 transition-all flex items-center gap-3 mx-auto">
               Start Building Now
               <ArrowRight className="w-6 h-6" />
             </button>
@@ -282,10 +275,8 @@ export default function Home() {
         </div>
       </section>
 
-      {/* --- Footer --- */}
-      <footer className="bg-white relative overflow-hidden pt-16 sm:pt-24 pb-8 border-t border-slate-200/60">
-        {/* Subtle decorative top gradient */}
-        <div className="absolute top-0 inset-x-0 h-[1px] bg-gradient-to-r from-transparent via-indigo-500/20 to-transparent"></div>
+      <footer className="bg-slate-100 relative overflow-hidden pt-16 sm:pt-24 pb-8 border-t border-slate-200">
+        <div className="absolute top-0 inset-x-0 h-[1px] bg-gradient-to-r from-transparent via-indigo-500/10 to-transparent"></div>
 
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-12 lg:gap-8">
@@ -417,7 +408,7 @@ export default function Home() {
                   type="email"
                   placeholder="Enter your email"
                   required
-                  className="w-full pl-10 pr-12 py-3 bg-slate-50/50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all text-slate-900 placeholder:text-slate-400 font-medium"
+                  className="w-full pl-10 pr-12 py-3 bg-white border border-slate-200/80 rounded-xl text-sm focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all text-slate-900 placeholder:text-slate-400 font-medium shadow-sm"
                 />
                 <button
                   type="submit"
@@ -430,7 +421,7 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="mt-16 pt-8 border-t border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4">
+          <div className="mt-16 pt-8 border-t border-slate-200/80 flex flex-col md:flex-row justify-between items-center gap-4">
             <p className="text-slate-400 text-sm font-medium">
               © {new Date().getFullYear()} AlumniDirectory. All rights reserved.
             </p>

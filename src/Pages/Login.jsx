@@ -185,7 +185,7 @@ export default function LoginPage() {
             {[
               "Verified authentic university profiles",
               "Strict role-based access controls",
-              "Granular directory search & filtering",
+              " Alumni search & filtering",
             ].map((feature, idx) => (
               <div key={idx} className="flex items-center gap-4 text-slate-300">
                 <div className="h-6 w-6 rounded-full bg-indigo-500/20 flex items-center justify-center shrink-0 border border-indigo-500/30">

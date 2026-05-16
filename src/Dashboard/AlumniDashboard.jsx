@@ -347,17 +347,24 @@ export default function AlumniDashboard() {
       </aside>
 
       <main className="flex-1 flex flex-col h-full overflow-hidden relative">
-        <header className="md:hidden bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between shrink-0 z-30 shadow-sm">
-          <div className="flex items-center gap-3">
+        <header className="bg-white border-b border-slate-200 px-4 md:px-6 py-3 flex items-center justify-between shrink-0 z-30 shadow-sm">
+          <div className="flex items-center gap-3 md:hidden">
             <button onClick={() => setIsMobileMenuOpen(true)} className="p-1.5 -ml-1.5 text-slate-600 hover:bg-slate-100 rounded-md"><Menu className="w-5 h-5" /></button>
             <div className="w-7 h-7 bg-indigo-600 rounded-md flex items-center justify-center text-white"><ShieldCheck className="w-4 h-4" /></div>
           </div>
-          <div className="w-8 h-8 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center font-bold text-sm border border-indigo-200 overflow-hidden">
-            {user?.img_url ? (
-              <img src={user.img_url} alt="Avatar" className="w-full h-full object-cover" />
-            ) : (
-              userInitial
-            )}
+          <div className="hidden md:flex flex-1"></div>
+          <div className="flex items-center gap-3 ml-auto">
+            <div className="text-right hidden sm:block">
+              <p className="text-sm font-bold text-slate-900 leading-tight">{user?.name || "User"}</p>
+              <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{user?.role || "Alumni"}</p>
+            </div>
+            <div className="w-9 h-9 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center font-bold text-sm ring-2 ring-white shadow-md overflow-hidden">
+              {user?.img_url ? (
+                <img src={user.img_url} alt="Avatar" className="w-full h-full object-cover" />
+              ) : (
+                userInitial
+              )}
+            </div>
           </div>
         </header>
 

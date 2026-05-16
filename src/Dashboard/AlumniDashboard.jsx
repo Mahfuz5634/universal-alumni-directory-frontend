@@ -29,6 +29,7 @@ import {
   Calendar,
   MessageSquare,
   Send,
+  Award
 } from "lucide-react";
 
 import { useAuth } from "../context/authContext";
@@ -52,10 +53,32 @@ const GithubIcon = ({ className }) => (
 
 export default function AlumniDashboard() {
   const { user, logout, updateUser } = useAuth();
+  
+  // Dashboard Navigation State
+  const [activeTab, setActiveTab] = useState("profile");
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
+  // Profile State
+  const [profile, setProfile] = useState(null);
+  const [isProfileLoading, setIsProfileLoading] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState({});
+  const [imagePreview, setImagePreview] = useState(null);
+
+  // Directory State
+  const [alumniList, setAlumniList] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const [filterCompany, setFilterCompany] = useState("");
 
   const [announcements, setAnnouncements] = useState([]);
   const [isAnnouncementsLoading, setIsAnnouncementsLoading] = useState(false);
+
+  const [stories, setStories] = useState([]);
+  const [isStoriesLoading, setIsStoriesLoading] = useState(false);
+
+  const userInitial = (user?.name || "A").charAt(0).toUpperCase();
 
   // Messaging State
   const [conversations, setConversations] = useState([]);
@@ -89,6 +112,39 @@ export default function AlumniDashboard() {
   };
 
   useEffect(() => {
+    if (activeTab === "profile") fetchProfile();
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (activeTab !== "directory") return;
+
+    const fetchAlumni = async () => {
+      setIsLoading(true);
+      try {
+        const response = await api.get("/directory");
+        const verifiedAlumni = response.data.filter(a => a.is_verified && a.role === "alumni");
+        setAlumniList(verifiedAlumni);
+      } catch (err) {
+        console.error("Failed to load alumni directory", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchAlumni();
+  }, [activeTab]);
+
+  const displayedAlumni = useMemo(() => {
+    return alumniList.filter((alumni) => {
+      const matchesSearch = !searchQuery || 
+        alumni.name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+        alumni.department?.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesCompany = !filterCompany || 
+        alumni.company?.toLowerCase().includes(filterCompany.toLowerCase());
+      return matchesSearch && matchesCompany;
+    });
+  }, [alumniList, searchQuery, filterCompany]);
+
+  useEffect(() => {
     if (activeTab !== "announcements") return;
     const fetchAnnouncements = async () => {
       setIsAnnouncementsLoading(true);
@@ -102,6 +158,22 @@ export default function AlumniDashboard() {
       }
     };
     fetchAnnouncements();
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (activeTab !== "stories") return;
+    const fetchStories = async () => {
+      setIsStoriesLoading(true);
+      try {
+        const response = await api.get("/stories");
+        setStories(response.data);
+      } catch (err) {
+        console.error("Failed to load stories:", err);
+      } finally {
+        setIsStoriesLoading(false);
+      }
+    };
+    fetchStories();
   }, [activeTab]);
 
   useEffect(() => {
@@ -263,6 +335,7 @@ export default function AlumniDashboard() {
           <NavItem id="messages" icon={MessageSquare} label="Messages" />
           {!isSidebarCollapsed && <p className="px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-6 mb-4">Community</p>}
           <NavItem id="announcements" icon={Megaphone} label="News & Updates" />
+          <NavItem id="stories" icon={Award} label="Success Stories" />
         </nav>
 
         <div className="p-4 border-t border-slate-100 bg-white">
@@ -647,6 +720,65 @@ export default function AlumniDashboard() {
                         <h3 className="text-xl font-bold text-slate-900 mb-2">{ann.title}</h3>
                         <p className="text-slate-600 leading-relaxed whitespace-pre-wrap">{ann.content}</p>
                       </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === "stories" && (
+            <div className="p-4 md:p-8 lg:px-12 lg:py-10 max-w-7xl mx-auto animate-in fade-in duration-500 slide-in-from-bottom-4">
+              <div className="mb-8">
+                <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">Success Stories</h2>
+                <p className="text-slate-500 mt-2 text-sm">Get inspired by the amazing achievements of our alumni network.</p>
+              </div>
+
+              {isStoriesLoading ? (
+                <div className="h-64 flex items-center justify-center"><div className="w-10 h-10 border-4 border-slate-100 border-t-indigo-600 rounded-full animate-spin"></div></div>
+              ) : stories.length === 0 ? (
+                <div className="p-16 bg-white rounded-3xl border border-dashed border-slate-300 text-center">
+                  <div className="w-16 h-16 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-4"><Award className="w-8 h-8 text-indigo-400" /></div>
+                  <h3 className="text-xl font-bold text-slate-900 mb-1">No Stories Yet</h3>
+                  <p className="text-slate-500 text-sm mb-6">Check back soon for inspiring stories from our alumni.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {stories.map((story) => (
+                    <div key={story._id} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm relative group flex flex-col hover:shadow-md transition-all">
+                      <div className="flex items-start gap-4 mb-4">
+                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-amber-100 to-orange-100 flex items-center justify-center shrink-0 border border-amber-200 shadow-inner overflow-hidden">
+                          {story.featured_alumni?.img_url ? (
+                            <img src={story.featured_alumni.img_url} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <Award className="w-6 h-6 text-amber-600" />
+                          )}
+                        </div>
+                        <div className="pr-8">
+                           <h3 className="text-xl font-bold text-slate-900 leading-tight mb-1">{story.title}</h3>
+                           <span className="text-xs font-medium text-slate-400 flex items-center gap-1">
+                              <Calendar className="w-3.5 h-3.5" /> {new Date(story.created_at).toLocaleDateString()}
+                           </span>
+                        </div>
+                      </div>
+                      
+                      <p className="text-slate-600 leading-relaxed whitespace-pre-wrap flex-1 mb-4 text-sm">{story.content}</p>
+                      
+                      {story.featured_alumni && (
+                        <div className="mt-auto pt-4 border-t border-slate-100 flex items-center gap-3">
+                          <div className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center text-slate-600 text-xs font-bold overflow-hidden">
+                            {story.featured_alumni.img_url ? (
+                              <img src={story.featured_alumni.img_url} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              story.featured_alumni.name.charAt(0)
+                            )}
+                          </div>
+                          <div>
+                            <p className="text-xs font-bold text-slate-900">Featured: {story.featured_alumni.name}</p>
+                            <p className="text-[10px] text-slate-500">{story.featured_alumni.position || "Alumni"} {story.featured_alumni.company ? `@ ${story.featured_alumni.company}` : ""}</p>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

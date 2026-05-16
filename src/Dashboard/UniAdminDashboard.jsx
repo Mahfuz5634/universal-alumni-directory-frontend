@@ -25,7 +25,9 @@ import {
   Megaphone,
   Plus,
   CalendarDays,
-  FileText
+  FileText,
+  Award,
+  Sparkles
 } from "lucide-react";
 
 import { useAuth } from "../context/authContext";
@@ -63,6 +65,10 @@ export default function UniAdminDashboard() {
   const [isAnnouncementModalOpen, setIsAnnouncementModalOpen] = useState(false);
   const [newAnnouncement, setNewAnnouncement] = useState({ title: "", content: "", type: "News" });
 
+  const [stories, setStories] = useState([]);
+  const [isStoryModalOpen, setIsStoryModalOpen] = useState(false);
+  const [newStory, setNewStory] = useState({ title: "", content: "", featured_alumni_id: "" });
+
   const [studentSearch, setStudentSearch] = useState("");
   const [pendingSearch, setPendingSearch] = useState("");
   const [verifiedSearch, setVerifiedSearch] = useState("");
@@ -87,15 +93,17 @@ export default function UniAdminDashboard() {
   const fetchDashboardData = async () => {
     setIsLoading(true);
     try {
-      const [studentsRes, directoryRes, uniRes, announcementsRes] = await Promise.all([
+      const [studentsRes, directoryRes, uniRes, announcementsRes, storiesRes] = await Promise.all([
         api.get("/admin/uni/all-students"),
         api.get("/directory"),
         api.get("/universities"),
-        api.get("/announcements")
+        api.get("/announcements"),
+        api.get("/stories")
       ]);
 
       setStudents(studentsRes.data || []);
       setAnnouncements(announcementsRes.data || []);
+      setStories(storiesRes.data || []);
       
       const allAlumni = directoryRes.data || [];
       setPendingAlumni(allAlumni.filter(a => a.role === "alumni" && !a.is_verified));
@@ -258,6 +266,44 @@ export default function UniAdminDashboard() {
     }
   };
 
+  const handleCreateStory = async (e) => {
+    e.preventDefault();
+    try {
+      await api.post("/admin/uni/stories", newStory);
+      showToast("Success story posted successfully!", "success");
+      setIsStoryModalOpen(false);
+      setNewStory({ title: "", content: "", featured_alumni_id: "" });
+      fetchDashboardData();
+    } catch (err) {
+      showToast("Failed to post story.", "error");
+    }
+  };
+
+  const confirmDeleteStory = (id) => {
+    setConfirmModal({
+      isOpen: true,
+      title: "Delete Story",
+      message: "Are you sure you want to delete this success story?",
+      confirmText: "Delete",
+      confirmBg: "bg-red-600 hover:bg-red-700",
+      iconBg: "bg-red-100",
+      iconColor: "text-red-600",
+      icon: Trash2,
+      onConfirm: () => executeDeleteStory(id),
+    });
+  };
+
+  const executeDeleteStory = async (id) => {
+    try {
+      await api.delete(`/admin/uni/stories/${id}`);
+      setConfirmModal({ ...confirmModal, isOpen: false });
+      fetchDashboardData();
+      showToast("Success story deleted.", "success");
+    } catch (err) {
+      showToast("Failed to delete story.", "error");
+    }
+  };
+
   const openProfile = (profile) => {
     setSelectedProfile(profile);
     setIsProfileModalOpen(true);
@@ -332,6 +378,7 @@ export default function UniAdminDashboard() {
           <NavItem id="verified" icon={CheckCircle2} label="Verified Alumni" badge={verifiedAlumni.length} />
           {!isSidebarCollapsed && <p className="px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-6 mb-4">Community</p>}
           <NavItem id="announcements" icon={Megaphone} label="Announcements" />
+          <NavItem id="stories" icon={Award} label="Success Stories" />
         </nav>
 
         <div className="p-4 border-t border-slate-100 bg-white">
@@ -622,6 +669,80 @@ export default function UniAdminDashboard() {
               )}
             </div>
           )}
+
+          {activeTab === "stories" && (
+            <div className="p-4 md:p-8 lg:px-12 lg:py-10 max-w-7xl mx-auto animate-in fade-in duration-500 slide-in-from-bottom-4">
+              <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">Success Stories</h2>
+                  <p className="text-slate-500 mt-2 text-sm">Highlight the achievements of outstanding alumni.</p>
+                </div>
+                <button
+                  onClick={() => setIsStoryModalOpen(true)}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors shadow-sm focus:ring-2 focus:ring-offset-2 focus:ring-indigo-600 shrink-0 w-fit"
+                >
+                  <Plus className="w-5 h-5" /> New Story
+                </button>
+              </div>
+
+              {isLoading ? (
+                <div className="h-64 flex items-center justify-center"><div className="w-10 h-10 border-4 border-slate-100 border-t-indigo-600 rounded-full animate-spin"></div></div>
+              ) : stories.length === 0 ? (
+                <div className="p-16 bg-white rounded-3xl border border-dashed border-slate-300 text-center">
+                  <div className="w-16 h-16 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-4"><Award className="w-8 h-8 text-indigo-400" /></div>
+                  <h3 className="text-xl font-bold text-slate-900 mb-1">No Success Stories Yet</h3>
+                  <p className="text-slate-500 text-sm mb-6">Start highlighting your alumni achievements!</p>
+                  <button onClick={() => setIsStoryModalOpen(true)} className="px-5 py-2 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-colors">Write Story</button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {stories.map((story) => (
+                    <div key={story._id} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm relative group flex flex-col hover:shadow-md transition-all">
+                       <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={() => confirmDeleteStory(story._id)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100" title="Delete Story">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                      
+                      <div className="flex items-start gap-4 mb-4">
+                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-amber-100 to-orange-100 flex items-center justify-center shrink-0 border border-amber-200 shadow-inner overflow-hidden">
+                          {story.featured_alumni?.img_url ? (
+                            <img src={story.featured_alumni.img_url} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <Award className="w-6 h-6 text-amber-600" />
+                          )}
+                        </div>
+                        <div className="pr-8">
+                           <h3 className="text-xl font-bold text-slate-900 leading-tight mb-1">{story.title}</h3>
+                           <span className="text-xs font-medium text-slate-400 flex items-center gap-1">
+                              <Calendar className="w-3.5 h-3.5" /> {new Date(story.created_at).toLocaleDateString()}
+                           </span>
+                        </div>
+                      </div>
+                      
+                      <p className="text-slate-600 leading-relaxed whitespace-pre-wrap flex-1 mb-4 text-sm">{story.content}</p>
+                      
+                      {story.featured_alumni && (
+                        <div className="mt-auto pt-4 border-t border-slate-100 flex items-center gap-3">
+                          <div className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center text-slate-600 text-xs font-bold overflow-hidden">
+                            {story.featured_alumni.img_url ? (
+                              <img src={story.featured_alumni.img_url} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              story.featured_alumni.name.charAt(0)
+                            )}
+                          </div>
+                          <div>
+                            <p className="text-xs font-bold text-slate-900">Featured: {story.featured_alumni.name}</p>
+                            <p className="text-[10px] text-slate-500">{story.featured_alumni.position || "Alumni"} {story.featured_alumni.company ? `@ ${story.featured_alumni.company}` : ""}</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </main>
 
@@ -751,6 +872,44 @@ export default function UniAdminDashboard() {
                <div className="mt-8 pt-4 border-t border-slate-100 flex justify-end gap-3">
                   <button type="button" onClick={() => setIsAnnouncementModalOpen(false)} className="px-5 py-2.5 text-sm font-bold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl transition-colors">Cancel</button>
                   <button type="submit" className="px-5 py-2.5 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors shadow-sm focus:ring-2 focus:ring-offset-2 focus:ring-indigo-600">Post Announcement</button>
+               </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {isStoryModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 shrink-0">
+               <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                 <Award className="w-5 h-5 text-amber-500" /> Write Success Story
+               </h3>
+               <button onClick={() => setIsStoryModalOpen(false)} className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-colors"><X className="w-5 h-5" /></button>
+            </div>
+            <form onSubmit={handleCreateStory} className="p-6 flex-1 overflow-y-auto">
+               <div className="space-y-5">
+                 <div>
+                   <label className="block text-sm font-bold text-slate-700 mb-1.5">Story Title</label>
+                   <input required type="text" value={newStory.title} onChange={(e) => setNewStory({...newStory, title: e.target.value})} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none text-slate-900 font-medium" placeholder="E.g., How Jane Doe founded a $1M startup" />
+                 </div>
+                 <div>
+                   <label className="block text-sm font-bold text-slate-700 mb-1.5">Featured Alumni (Optional)</label>
+                   <select value={newStory.featured_alumni_id} onChange={(e) => setNewStory({...newStory, featured_alumni_id: e.target.value})} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none text-slate-900 font-medium bg-white">
+                     <option value="">-- Select an Alumni --</option>
+                     {verifiedAlumni.map(a => (
+                       <option key={a._id} value={a._id}>{a.name} ({a.department})</option>
+                     ))}
+                   </select>
+                 </div>
+                 <div>
+                   <label className="block text-sm font-bold text-slate-700 mb-1.5">Content</label>
+                   <textarea required value={newStory.content} onChange={(e) => setNewStory({...newStory, content: e.target.value})} rows="8" className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none text-slate-900 font-medium resize-none" placeholder="Write the success story..."></textarea>
+                 </div>
+               </div>
+               <div className="mt-8 pt-4 border-t border-slate-100 flex justify-end gap-3 shrink-0">
+                  <button type="button" onClick={() => setIsStoryModalOpen(false)} className="px-5 py-2.5 text-sm font-bold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl transition-colors">Cancel</button>
+                  <button type="submit" disabled={!newStory.title || !newStory.content} className="px-5 py-2.5 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:hover:bg-indigo-600 rounded-xl transition-colors shadow-sm focus:ring-2 focus:ring-offset-2 focus:ring-indigo-600">Publish Story</button>
                </div>
             </form>
           </div>

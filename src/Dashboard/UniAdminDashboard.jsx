@@ -22,6 +22,10 @@ import {
   Mail,
   Phone,
   Calendar,
+  Megaphone,
+  Plus,
+  CalendarDays,
+  FileText
 } from "lucide-react";
 
 import { useAuth } from "../context/authContext";
@@ -55,6 +59,9 @@ export default function UniAdminDashboard() {
   const [verifiedAlumni, setVerifiedAlumni] = useState([]);
   const [universityName, setUniversityName] = useState("Loading University...");
   const [isLoading, setIsLoading] = useState(true);
+  const [announcements, setAnnouncements] = useState([]);
+  const [isAnnouncementModalOpen, setIsAnnouncementModalOpen] = useState(false);
+  const [newAnnouncement, setNewAnnouncement] = useState({ title: "", content: "", type: "News" });
 
   const [studentSearch, setStudentSearch] = useState("");
   const [pendingSearch, setPendingSearch] = useState("");
@@ -80,13 +87,15 @@ export default function UniAdminDashboard() {
   const fetchDashboardData = async () => {
     setIsLoading(true);
     try {
-      const [studentsRes, directoryRes, uniRes] = await Promise.all([
+      const [studentsRes, directoryRes, uniRes, announcementsRes] = await Promise.all([
         api.get("/admin/uni/all-students"),
         api.get("/directory"),
-        api.get("/universities")
+        api.get("/universities"),
+        api.get("/announcements")
       ]);
 
       setStudents(studentsRes.data || []);
+      setAnnouncements(announcementsRes.data || []);
       
       const allAlumni = directoryRes.data || [];
       setPendingAlumni(allAlumni.filter(a => a.role === "alumni" && !a.is_verified));
@@ -211,6 +220,44 @@ export default function UniAdminDashboard() {
     }
   };
 
+  const handleCreateAnnouncement = async (e) => {
+    e.preventDefault();
+    try {
+      await api.post("/admin/uni/announcements", newAnnouncement);
+      showToast("Announcement posted successfully!", "success");
+      setIsAnnouncementModalOpen(false);
+      setNewAnnouncement({ title: "", content: "", type: "News" });
+      fetchDashboardData();
+    } catch (err) {
+      showToast("Failed to post announcement.", "error");
+    }
+  };
+
+  const confirmDeleteAnnouncement = (id) => {
+    setConfirmModal({
+      isOpen: true,
+      title: "Delete Announcement",
+      message: "Are you sure you want to delete this announcement?",
+      confirmText: "Delete",
+      confirmBg: "bg-red-600 hover:bg-red-700",
+      iconBg: "bg-red-100",
+      iconColor: "text-red-600",
+      icon: Trash2,
+      onConfirm: () => executeDeleteAnnouncement(id),
+    });
+  };
+
+  const executeDeleteAnnouncement = async (id) => {
+    try {
+      await api.delete(`/admin/uni/announcements/${id}`);
+      setConfirmModal({ ...confirmModal, isOpen: false });
+      fetchDashboardData();
+      showToast("Announcement deleted.", "success");
+    } catch (err) {
+      showToast("Failed to delete announcement.", "error");
+    }
+  };
+
   const openProfile = (profile) => {
     setSelectedProfile(profile);
     setIsProfileModalOpen(true);
@@ -283,6 +330,8 @@ export default function UniAdminDashboard() {
           <NavItem id="students" icon={GraduationCap} label="Current Students" badge={students.length} />
           <NavItem id="pending" icon={Users} label="Verification Requests" badge={pendingAlumni.length} />
           <NavItem id="verified" icon={CheckCircle2} label="Verified Alumni" badge={verifiedAlumni.length} />
+          {!isSidebarCollapsed && <p className="px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-6 mb-4">Community</p>}
+          <NavItem id="announcements" icon={Megaphone} label="Announcements" />
         </nav>
 
         <div className="p-4 border-t border-slate-100 bg-white">
@@ -307,8 +356,27 @@ export default function UniAdminDashboard() {
           {activeTab === "students" && (
             <div className="p-4 md:p-8 lg:px-12 lg:py-10 max-w-7xl mx-auto animate-in fade-in duration-500 slide-in-from-bottom-4">
               <div className="mb-8">
-                <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">Current Students</h2>
-                <p className="text-slate-500 mt-2 text-sm">Manage enrolled students at {universityName}.</p>
+                <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">University Overview</h2>
+                <p className="text-slate-500 mt-2 text-sm">Manage enrolled students and alumni at {universityName}.</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div className="bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-2xl p-6 text-white shadow-lg shadow-indigo-200 transform transition-transform hover:scale-105 duration-300">
+                  <h3 className="text-indigo-100 font-semibold mb-2 uppercase tracking-wider text-xs">Total Students</h3>
+                  <p className="text-4xl font-extrabold tracking-tight">{students.length}</p>
+                </div>
+                <div className="bg-gradient-to-br from-emerald-500 to-emerald-700 rounded-2xl p-6 text-white shadow-lg shadow-emerald-200 transform transition-transform hover:scale-105 duration-300">
+                  <h3 className="text-emerald-100 font-semibold mb-2 uppercase tracking-wider text-xs">Verified Alumni</h3>
+                  <p className="text-4xl font-extrabold tracking-tight">{verifiedAlumni.length}</p>
+                </div>
+                <div className="bg-gradient-to-br from-amber-500 to-amber-700 rounded-2xl p-6 text-white shadow-lg shadow-amber-200 transform transition-transform hover:scale-105 duration-300">
+                  <h3 className="text-amber-100 font-semibold mb-2 uppercase tracking-wider text-xs">Pending Approvals</h3>
+                  <p className="text-4xl font-extrabold tracking-tight">{pendingAlumni.length}</p>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-xl font-bold text-slate-900 tracking-tight">Current Students</h3>
               </div>
 
               <div className="bg-white p-2 rounded-2xl border border-slate-200 mb-8 shadow-sm focus-within:ring-2 focus-within:ring-indigo-500 transition-all flex items-center">
@@ -335,8 +403,12 @@ export default function UniAdminDashboard() {
                       </div>
                       
                       <div className="flex gap-4 mb-5">
-                        <div className="w-14 h-14 bg-gradient-to-br from-indigo-50 to-slate-100 text-indigo-700 rounded-xl flex items-center justify-center font-extrabold text-xl border border-indigo-100/50 shrink-0 shadow-inner">
-                          {(student.name || "S").charAt(0).toUpperCase()}
+                        <div className="w-14 h-14 bg-gradient-to-br from-indigo-50 to-slate-100 text-indigo-700 rounded-xl flex items-center justify-center font-extrabold text-xl border border-indigo-100/50 shrink-0 shadow-inner overflow-hidden">
+                          {student.img_url ? (
+                            <img src={student.img_url} alt={student.name} className="w-full h-full object-cover" />
+                          ) : (
+                            (student.name || "S").charAt(0).toUpperCase()
+                          )}
                         </div>
                         <div className="flex-1 pr-8 pt-1">
                           <h4 className="font-bold text-slate-900 text-lg leading-tight mb-1 truncate">{student.name}</h4>
@@ -386,8 +458,12 @@ export default function UniAdminDashboard() {
                   {displayedPending.map((alumni) => (
                     <div key={alumni._id} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-slate-300 transition-all duration-200 flex flex-col relative">
                       <div className="flex gap-4 mb-5">
-                        <div className="w-14 h-14 bg-amber-50 text-amber-700 rounded-xl flex items-center justify-center font-extrabold text-xl border border-amber-100/50 shrink-0 shadow-inner">
-                          {(alumni.name || "A").charAt(0).toUpperCase()}
+                        <div className="w-14 h-14 bg-amber-50 text-amber-700 rounded-xl flex items-center justify-center font-extrabold text-xl border border-amber-100/50 shrink-0 shadow-inner overflow-hidden">
+                          {alumni.img_url ? (
+                            <img src={alumni.img_url} alt={alumni.name} className="w-full h-full object-cover" />
+                          ) : (
+                            (alumni.name || "A").charAt(0).toUpperCase()
+                          )}
                         </div>
                         <div className="flex-1 pt-1">
                           <h4 className="font-bold text-slate-900 text-lg leading-tight mb-1 truncate">{alumni.name}</h4>
@@ -454,8 +530,12 @@ export default function UniAdminDashboard() {
                       </div>
 
                       <div className="flex gap-4 mb-5">
-                        <div className="w-14 h-14 bg-gradient-to-br from-indigo-50 to-slate-100 text-indigo-700 rounded-xl flex items-center justify-center font-extrabold text-xl border border-indigo-100/50 shrink-0 shadow-inner">
-                          {(alumni.name || "A").charAt(0).toUpperCase()}
+                        <div className="w-14 h-14 bg-gradient-to-br from-indigo-50 to-slate-100 text-indigo-700 rounded-xl flex items-center justify-center font-extrabold text-xl border border-indigo-100/50 shrink-0 shadow-inner overflow-hidden">
+                          {alumni.img_url ? (
+                            <img src={alumni.img_url} alt={alumni.name} className="w-full h-full object-cover" />
+                          ) : (
+                            (alumni.name || "A").charAt(0).toUpperCase()
+                          )}
                         </div>
                         <div className="flex-1 pr-12 pt-1">
                           <div className="flex items-start justify-between">
@@ -473,6 +553,68 @@ export default function UniAdminDashboard() {
                         <div className="flex items-center gap-2.5 text-sm text-slate-600">
                           <Briefcase className="w-4 h-4 text-slate-400 shrink-0" /> <span className="font-medium truncate">{alumni.position || "N/A"} at {alumni.company || "N/A"}</span>
                         </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === "announcements" && (
+            <div className="p-4 md:p-8 lg:px-12 lg:py-10 max-w-7xl mx-auto animate-in fade-in duration-500 slide-in-from-bottom-4">
+              <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">Announcements</h2>
+                  <p className="text-slate-500 mt-2 text-sm">Post news, events, and updates for {universityName} alumni and students.</p>
+                </div>
+                <button
+                  onClick={() => setIsAnnouncementModalOpen(true)}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors shadow-sm focus:ring-2 focus:ring-offset-2 focus:ring-indigo-600 shrink-0 w-fit"
+                >
+                  <Plus className="w-5 h-5" /> New Post
+                </button>
+              </div>
+
+              {isLoading ? (
+                <div className="h-64 flex items-center justify-center"><div className="w-10 h-10 border-4 border-slate-100 border-t-indigo-600 rounded-full animate-spin"></div></div>
+              ) : announcements.length === 0 ? (
+                <div className="p-16 bg-white rounded-3xl border border-dashed border-slate-300 text-center">
+                  <div className="w-16 h-16 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-4"><Megaphone className="w-8 h-8 text-indigo-400" /></div>
+                  <h3 className="text-xl font-bold text-slate-900 mb-1">No Announcements Yet</h3>
+                  <p className="text-slate-500 text-sm mb-6">Keep your community engaged by posting the first update.</p>
+                  <button onClick={() => setIsAnnouncementModalOpen(true)} className="px-5 py-2 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-colors">Create Post</button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {announcements.map((ann) => (
+                    <div key={ann._id} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm relative group flex flex-col md:flex-row gap-6 hover:shadow-md transition-shadow">
+                       <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={() => confirmDeleteAnnouncement(ann._id)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100" title="Delete Announcement">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border mt-1
+                        {ann.type === 'Event' ? 'bg-amber-50 text-amber-600 border-amber-100' : 
+                         ann.type === 'Reunion' ? 'bg-fuchsia-50 text-fuchsia-600 border-fuchsia-100' : 
+                         'bg-blue-50 text-blue-600 border-blue-100'}">
+                        {ann.type === "Event" ? <CalendarDays className="w-6 h-6" /> : 
+                         ann.type === "Reunion" ? <Users className="w-6 h-6" /> : 
+                         <FileText className="w-6 h-6" />}
+                      </div>
+                      <div className="flex-1 pr-8">
+                        <div className="flex items-center gap-3 mb-2">
+                          <span className={`text-xs font-bold px-2 py-0.5 rounded-md ${
+                            ann.type === 'Event' ? 'bg-amber-100 text-amber-700' : 
+                            ann.type === 'Reunion' ? 'bg-fuchsia-100 text-fuchsia-700' : 
+                            'bg-blue-100 text-blue-700'
+                          }`}>{ann.type}</span>
+                          <span className="text-xs font-medium text-slate-400 flex items-center gap-1">
+                             <Calendar className="w-3.5 h-3.5" /> {new Date(ann.created_at).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <h3 className="text-xl font-bold text-slate-900 mb-2">{ann.title}</h3>
+                        <p className="text-slate-600 leading-relaxed whitespace-pre-wrap">{ann.content}</p>
                       </div>
                     </div>
                   ))}
@@ -504,8 +646,12 @@ export default function UniAdminDashboard() {
 
               <div className="px-8 pb-8 relative">
                 <div className="w-24 h-24 bg-white rounded-2xl p-1.5 shadow-lg absolute -top-12 border border-slate-100">
-                  <div className="w-full h-full bg-indigo-50 rounded-xl flex items-center justify-center font-extrabold text-indigo-600 text-3xl">
-                    {(selectedProfile.name || "A").charAt(0).toUpperCase()}
+                  <div className="w-full h-full bg-indigo-50 rounded-xl flex items-center justify-center font-extrabold text-indigo-600 text-3xl overflow-hidden">
+                    {selectedProfile.img_url ? (
+                      <img src={selectedProfile.img_url} alt={selectedProfile.name} className="w-full h-full object-cover" />
+                    ) : (
+                      (selectedProfile.name || "A").charAt(0).toUpperCase()
+                    )}
                   </div>
                 </div>
 
@@ -566,6 +712,47 @@ export default function UniAdminDashboard() {
                 </button>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {isAnnouncementModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+               <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                 <Megaphone className="w-5 h-5 text-indigo-600" /> New Announcement
+               </h3>
+               <button onClick={() => setIsAnnouncementModalOpen(false)} className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-colors"><X className="w-5 h-5" /></button>
+            </div>
+            <form onSubmit={handleCreateAnnouncement} className="p-6 flex-1 overflow-y-auto">
+               <div className="space-y-5">
+                 <div>
+                   <label className="block text-sm font-bold text-slate-700 mb-1.5">Post Type</label>
+                   <div className="grid grid-cols-3 gap-3">
+                     {["News", "Event", "Reunion"].map(type => (
+                       <label key={type} className={`cursor-pointer border rounded-xl p-3 flex flex-col items-center gap-2 transition-all ${newAnnouncement.type === type ? "border-indigo-600 bg-indigo-50 text-indigo-700 shadow-sm" : "border-slate-200 hover:border-indigo-200 hover:bg-slate-50 text-slate-600"}`}>
+                         <input type="radio" name="type" value={type} checked={newAnnouncement.type === type} onChange={(e) => setNewAnnouncement({...newAnnouncement, type: e.target.value})} className="sr-only" />
+                         {type === "Event" ? <CalendarDays className="w-5 h-5" /> : type === "Reunion" ? <Users className="w-5 h-5" /> : <FileText className="w-5 h-5" />}
+                         <span className="text-xs font-bold">{type}</span>
+                       </label>
+                     ))}
+                   </div>
+                 </div>
+                 <div>
+                   <label className="block text-sm font-bold text-slate-700 mb-1.5">Title</label>
+                   <input required type="text" value={newAnnouncement.title} onChange={(e) => setNewAnnouncement({...newAnnouncement, title: e.target.value})} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none text-slate-900 font-medium" placeholder="E.g., Alumni Meetup 2026!" />
+                 </div>
+                 <div>
+                   <label className="block text-sm font-bold text-slate-700 mb-1.5">Content</label>
+                   <textarea required value={newAnnouncement.content} onChange={(e) => setNewAnnouncement({...newAnnouncement, content: e.target.value})} rows="5" className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none text-slate-900 font-medium resize-none" placeholder="Write your announcement details here..."></textarea>
+                 </div>
+               </div>
+               <div className="mt-8 pt-4 border-t border-slate-100 flex justify-end gap-3">
+                  <button type="button" onClick={() => setIsAnnouncementModalOpen(false)} className="px-5 py-2.5 text-sm font-bold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl transition-colors">Cancel</button>
+                  <button type="submit" className="px-5 py-2.5 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors shadow-sm focus:ring-2 focus:ring-offset-2 focus:ring-indigo-600">Post Announcement</button>
+               </div>
+            </form>
           </div>
         </div>
       )}

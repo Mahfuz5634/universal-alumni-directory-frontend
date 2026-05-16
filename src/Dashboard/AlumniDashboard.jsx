@@ -20,11 +20,18 @@ import {
   Users,
   Edit3,
   Save,
-  AlertCircle
+  AlertCircle,
+  Camera,
+  Upload,
+  Megaphone,
+  CalendarDays,
+  FileText,
+  Calendar,
 } from "lucide-react";
 
 import { useAuth } from "../context/authContext";
 import api from "../services/api";
+import { uploadImage } from "../services/imageUpload";
 
 const LinkedinIcon = ({ className }) => (
   <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -42,77 +49,82 @@ const GithubIcon = ({ className }) => (
 );
 
 export default function AlumniDashboard() {
-  const { user, logout } = useAuth();
-  const [activeTab, setActiveTab] = useState("profile");
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-
-  const [alumniData, setAlumniData] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
+  const { user, logout, updateUser } = useAuth();
   const [filterCompany, setFilterCompany] = useState("");
 
-  const [profile, setProfile] = useState(null);
-  const [isProfileLoading, setIsProfileLoading] = useState(true);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editForm, setEditForm] = useState({});
-
-  const userInitial = (user?.name || "A").charAt(0).toUpperCase();
-
-  const fetchDirectory = async () => {
-    setIsLoading(true);
-    try {
-      const response = await api.get("/directory");
-      setAlumniData(response.data || []);
-    } catch (err) {
-      console.error("Failed to fetch directory:", err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const [announcements, setAnnouncements] = useState([]);
+  const [isAnnouncementsLoading, setIsAnnouncementsLoading] = useState(false);
 
   const fetchProfile = async () => {
     setIsProfileLoading(true);
     try {
       const response = await api.get("/auth/me");
-      setProfile(response.data.user || user);
-      setEditForm(response.data.user || user);
+      const userData = response.data.user;
+      setProfile(userData);
+      setEditForm(userData);
+      updateUser(userData);
+      if (userData.img_url) {
+        setImagePreview(userData.img_url);
+      }
     } catch (err) {
       setProfile(user);
       setEditForm(user);
+      if (user?.img_url) {
+        setImagePreview(user.img_url);
+      }
     } finally {
       setIsProfileLoading(false);
     }
   };
 
   useEffect(() => {
-    if (activeTab === "directory") fetchDirectory();
-    if (activeTab === "profile" && !profile) fetchProfile();
+    if (activeTab !== "announcements") return;
+    const fetchAnnouncements = async () => {
+      setIsAnnouncementsLoading(true);
+      try {
+        const response = await api.get("/announcements");
+        setAnnouncements(response.data);
+      } catch (err) {
+        console.error("Failed to load announcements:", err);
+      } finally {
+        setIsAnnouncementsLoading(false);
+      }
+    };
+    fetchAnnouncements();
   }, [activeTab]);
-
-  const displayedAlumni = useMemo(() => {
-    return alumniData.filter((alumni) => {
-      const matchesSearch =
-        alumni.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        alumni.department?.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesCompany =
-        !filterCompany ||
-        alumni.company?.toLowerCase().includes(filterCompany.toLowerCase());
-      return matchesSearch && matchesCompany;
-    });
-  }, [alumniData, searchQuery, filterCompany]);
-
-  const handleEditChange = (e) => {
-    setEditForm({ ...editForm, [e.target.name]: e.target.value });
-  };
 
   const handleSaveProfile = async () => {
     try {
-      await api.put(`/alumni/${profile._id}`, editForm);
-      setProfile(editForm);
+      let profilePictureUrl = profile.img_url;
+      
+      if (editForm.profile_picture_file instanceof File) {
+        profilePictureUrl = await uploadImage(editForm.profile_picture_file);
+      }
+
+      const updatedData = { 
+        ...editForm, 
+        img_url: profilePictureUrl 
+      };
+      delete updatedData.profile_picture_file;
+
+      await api.put(`/alumni/profile/${profile._id}`, updatedData);
+      setProfile(updatedData);
+      updateUser(updatedData);
       setIsEditing(false);
     } catch (err) {
       console.error("Failed to update profile", err);
+    }
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setEditForm({ ...editForm, profile_picture_file: file });
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -166,6 +178,8 @@ export default function AlumniDashboard() {
           {!isSidebarCollapsed && <p className="px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-4">Dashboard</p>}
           <NavItem id="profile" icon={ShieldCheck} label="My Profile" />
           <NavItem id="directory" icon={Users} label="Alumni Directory" />
+          {!isSidebarCollapsed && <p className="px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-6 mb-4">Community</p>}
+          <NavItem id="announcements" icon={Megaphone} label="News & Updates" />
         </nav>
 
         <div className="p-4 border-t border-slate-100 bg-white">
@@ -182,7 +196,13 @@ export default function AlumniDashboard() {
             <button onClick={() => setIsMobileMenuOpen(true)} className="p-1.5 -ml-1.5 text-slate-600 hover:bg-slate-100 rounded-md"><Menu className="w-5 h-5" /></button>
             <div className="w-7 h-7 bg-indigo-600 rounded-md flex items-center justify-center text-white"><ShieldCheck className="w-4 h-4" /></div>
           </div>
-          <div className="w-8 h-8 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center font-bold text-sm border border-indigo-200">{userInitial}</div>
+          <div className="w-8 h-8 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center font-bold text-sm border border-indigo-200 overflow-hidden">
+            {user?.img_url ? (
+              <img src={user.img_url} alt="Avatar" className="w-full h-full object-cover" />
+            ) : (
+              userInitial
+            )}
+          </div>
         </header>
 
         <div className="flex-1 overflow-y-auto bg-slate-50 pb-12">
@@ -208,9 +228,20 @@ export default function AlumniDashboard() {
                   </div>
                   
                   <div className="px-8 pb-10 relative">
-                    <div className="w-28 h-28 bg-white rounded-2xl p-1.5 shadow-lg absolute -top-14 border border-slate-100">
-                      <div className="w-full h-full bg-indigo-50 rounded-xl flex items-center justify-center font-extrabold text-indigo-600 text-4xl">
-                        {(profile?.name || "A").charAt(0).toUpperCase()}
+                    <div className="w-28 h-28 bg-white rounded-2xl p-1.5 shadow-lg absolute -top-14 border border-slate-100 group">
+                      <div className="w-full h-full bg-indigo-50 rounded-xl flex items-center justify-center font-extrabold text-indigo-600 text-4xl overflow-hidden relative">
+                        {imagePreview ? (
+                          <img src={imagePreview} alt="Profile" className="w-full h-full object-cover" />
+                        ) : (
+                          (profile?.name || "A").charAt(0).toUpperCase()
+                        )}
+                        
+                        {isEditing && (
+                          <label className="absolute inset-0 bg-black/40 flex items-center justify-center cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Camera className="w-8 h-8 text-white" />
+                            <input type="file" className="hidden" accept="image/*" onChange={handleFileChange} />
+                          </label>
+                        )}
                       </div>
                     </div>
                     
@@ -266,6 +297,8 @@ export default function AlumniDashboard() {
                         </div>
                       ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div><label className="block text-sm font-bold text-slate-700 mb-1.5">Name</label><input type="text" name="name" value={editForm.name || ""} onChange={handleEditChange} className="w-full px-4 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600 outline-none transition-all" /></div>
+                          <div><label className="block text-sm font-bold text-slate-700 mb-1.5">Department</label><input type="text" name="department" value={editForm.department || ""} onChange={handleEditChange} className="w-full px-4 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600 outline-none transition-all" /></div>
                           <div><label className="block text-sm font-bold text-slate-700 mb-1.5">Company</label><input type="text" name="company" value={editForm.company || ""} onChange={handleEditChange} className="w-full px-4 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600 outline-none transition-all" /></div>
                           <div><label className="block text-sm font-bold text-slate-700 mb-1.5">Position</label><input type="text" name="position" value={editForm.position || ""} onChange={handleEditChange} className="w-full px-4 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600 outline-none transition-all" /></div>
                           <div><label className="block text-sm font-bold text-slate-700 mb-1.5">Contact Number</label><input type="text" name="contact_number" value={editForm.contact_number || ""} onChange={handleEditChange} className="w-full px-4 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600 outline-none transition-all" /></div>
@@ -310,10 +343,14 @@ export default function AlumniDashboard() {
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {displayedAlumni.map((alumni) => (
-                    <div key={alumni._id} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-slate-300 transition-all duration-200 flex flex-col relative">
+                    <div key={alumni._id} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-xl hover:border-indigo-200 transform transition-all hover:-translate-y-1 duration-300 flex flex-col relative group">
                       <div className="flex gap-4 mb-5">
-                        <div className="w-14 h-14 bg-gradient-to-br from-indigo-50 to-slate-100 text-indigo-700 rounded-xl flex items-center justify-center font-extrabold text-xl border border-indigo-100/50 shrink-0 shadow-inner">
-                          {(alumni.name || "A").charAt(0).toUpperCase()}
+                        <div className="w-14 h-14 bg-gradient-to-br from-indigo-50 to-slate-100 text-indigo-700 rounded-xl flex items-center justify-center font-extrabold text-xl border border-indigo-100/50 shrink-0 shadow-inner overflow-hidden">
+                          {alumni.img_url ? (
+                            <img src={alumni.img_url} alt={alumni.name} className="w-full h-full object-cover" />
+                          ) : (
+                            (alumni.name || "A").charAt(0).toUpperCase()
+                          )}
                         </div>
                         <div className="flex-1 pt-1">
                           <div className="flex items-start justify-between">
@@ -352,6 +389,54 @@ export default function AlumniDashboard() {
                             <Mail className="w-4 h-4" />
                           </a>
                         )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === "announcements" && (
+            <div className="p-4 md:p-8 lg:px-12 lg:py-10 max-w-7xl mx-auto animate-in fade-in duration-500 slide-in-from-bottom-4">
+              <div className="mb-8">
+                <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">News & Updates</h2>
+                <p className="text-slate-500 mt-2 text-sm">Stay updated with the latest news, events, and reunions from your university.</p>
+              </div>
+
+              {isAnnouncementsLoading ? (
+                <div className="h-64 flex items-center justify-center"><div className="w-10 h-10 border-4 border-slate-100 border-t-indigo-600 rounded-full animate-spin"></div></div>
+              ) : announcements.length === 0 ? (
+                <div className="p-16 bg-white rounded-3xl border border-dashed border-slate-300 text-center">
+                  <div className="w-16 h-16 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-4"><Megaphone className="w-8 h-8 text-indigo-400" /></div>
+                  <h3 className="text-xl font-bold text-slate-900 mb-1">No Announcements Yet</h3>
+                  <p className="text-slate-500 text-sm mb-6">Check back later for updates from your university administration.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {announcements.map((ann) => (
+                    <div key={ann._id} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm relative flex flex-col md:flex-row gap-6 hover:shadow-md transition-shadow">
+                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border mt-1
+                        ${ann.type === 'Event' ? 'bg-amber-50 text-amber-600 border-amber-100' : 
+                         ann.type === 'Reunion' ? 'bg-fuchsia-50 text-fuchsia-600 border-fuchsia-100' : 
+                         'bg-blue-50 text-blue-600 border-blue-100'}`}>
+                        {ann.type === "Event" ? <CalendarDays className="w-6 h-6" /> : 
+                         ann.type === "Reunion" ? <Users className="w-6 h-6" /> : 
+                         <FileText className="w-6 h-6" />}
+                      </div>
+                      <div className="flex-1 pr-8">
+                        <div className="flex items-center gap-3 mb-2">
+                          <span className={`text-xs font-bold px-2 py-0.5 rounded-md ${
+                            ann.type === 'Event' ? 'bg-amber-100 text-amber-700' : 
+                            ann.type === 'Reunion' ? 'bg-fuchsia-100 text-fuchsia-700' : 
+                            'bg-blue-100 text-blue-700'
+                          }`}>{ann.type}</span>
+                          <span className="text-xs font-medium text-slate-400 flex items-center gap-1">
+                             <Calendar className="w-3.5 h-3.5" /> {new Date(ann.created_at).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <h3 className="text-xl font-bold text-slate-900 mb-2">{ann.title}</h3>
+                        <p className="text-slate-600 leading-relaxed whitespace-pre-wrap">{ann.content}</p>
                       </div>
                     </div>
                   ))}

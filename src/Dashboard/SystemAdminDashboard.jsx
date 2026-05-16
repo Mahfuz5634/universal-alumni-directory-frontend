@@ -21,14 +21,17 @@ import {
   Phone,
   GraduationCap,
   Plus,
+  Camera,
+  Upload,
 } from "lucide-react";
 
 import { useAuth } from "../context/authContext";
 import { useToast } from "../context/ToastContext";
 import api from "../services/api";
+import { uploadImage } from "../services/imageUpload";
 
 export default function SystemAdminDashboard() {
-  const { user, logout } = useAuth();
+  const { user, logout, updateUser } = useAuth();
   const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState("profile");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -51,6 +54,8 @@ export default function SystemAdminDashboard() {
   const [uniModal, setUniModal] = useState({ isOpen: false, mode: "add", data: null });
   const [adminModal, setAdminModal] = useState({ isOpen: false, mode: "create", data: null });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [imagePreview, setImagePreview] = useState(user?.img_url || null);
+  const [logoPreview, setLogoPreview] = useState(null);
 
   const userInitial = (user?.name || "A").charAt(0).toUpperCase();
 
@@ -61,11 +66,6 @@ export default function SystemAdminDashboard() {
       const response = await api.get("/universities");
       setUniversitiesList(response.data || []);
     } catch (err) {
-      // Fallback dummy data for preview
-      setUniversitiesList([
-        { _id: "65e0f1a2b3c4d5e6f7g8h9i0", name: "UITS", location: "Badda, Dhaka" },
-        { _id: "65e0f1a2b3c4d5e6f7g8h9i1", name: "Dhaka University", location: "Shahbag, Dhaka" },
-      ]);
       console.error("Failed to fetch universities:", err);
     } finally {
       setIsLoading(false);
@@ -78,10 +78,6 @@ export default function SystemAdminDashboard() {
       const response = await api.get("/admin/system/all-alumni");
       setAlumniList(response.data || []);
     } catch (err) {
-      setAlumniList([
-        { _id: "a1", name: "John Doe", email: "john.doe@gmail.com", phone: "+8801711223344", university_id: "65e0f1a2b3c4d5e6f7g8h9i0" },
-        { _id: "a2", name: "Ms. Farhana", email: "farhana@du.alumni.bd", phone: "+8801999887766", university_id: "65e0f1a2b3c4d5e6f7g8h9i1" },
-      ]);
       console.error("Failed to fetch alumni:", err);
     } finally {
       setIsAlumniLoading(false);
@@ -94,9 +90,6 @@ export default function SystemAdminDashboard() {
       const response = await api.get("/admin/system/all-uni-admins");
       setUniAdminsList(response.data || []);
     } catch (err) {
-      setUniAdminsList([
-        { _id: "65f1a2b3c4d5e6f7g8h9i0j1", name: "Dr. Abu Rayhan", email: "rayhan@uits.edu.bd", role: "uni_admin", university_id: "65e0f1a2b3c4d5e6f7g8h9i0", created_at: "2026-03-15T10:30:00.000Z" },
-      ]);
       console.error("Failed to fetch uni admins:", err);
     } finally {
       setIsUniAdminsLoading(false);
@@ -104,11 +97,10 @@ export default function SystemAdminDashboard() {
   };
 
   useEffect(() => {
-    if (universitiesList.length === 0) fetchUniversities();
-    if (activeTab === "universities") fetchUniversities();
-    else if (activeTab === "alumni") fetchAlumni();
-    else if (activeTab === "uni_admins") fetchUniAdmins();
-  }, [activeTab]);
+    fetchUniversities();
+    fetchAlumni();
+    fetchUniAdmins();
+  }, []);
 
   const getUniversityName = (id) => {
     const uni = universitiesList.find((u) => u._id === id);
@@ -130,18 +122,71 @@ export default function SystemAdminDashboard() {
     setIsMobileMenuOpen(false);
   };
 
+  // --- FILE HANDLERS ---
+  const handleProfilePictureChange = async (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Local preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+
+      try {
+        showToast("Uploading profile picture...", "info");
+        const imageUrl = await uploadImage(file);
+        
+        await api.put(`/admin/profile/${user._id}`, {
+          img_url: imageUrl,
+        });
+        
+        updateUser({ img_url: imageUrl });
+        showToast("Profile picture updated!", "success");
+      } catch (err) {
+        showToast("Failed to update profile picture.", "error");
+      }
+    }
+  };
+
+  const handleLogoChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setLogoPreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   // --- API HANDLERS ---
   const handleSaveUniversity = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
-    const formData = new FormData(e.target);
-    const payload = { name: formData.get("name"), location: formData.get("location") };
-
+    const form = e.target;
+    const formData = new FormData(form);
+    
     try {
+      let logoUrl = uniModal.data?.img_url;
+      const logoFile = formData.get("logo");
+      
+      if (logoFile && logoFile.size > 0) {
+        showToast("Uploading logo...", "info");
+        logoUrl = await uploadImage(logoFile);
+      }
+
+      const payload = {
+        name: formData.get("name"),
+        location: formData.get("location"),
+        img_url: logoUrl,
+      };
+
       if (uniModal.mode === "add") await api.post("/universities", payload);
       else await api.put(`/universities/${uniModal.data._id}`, payload);
       
       setUniModal({ isOpen: false, mode: "add", data: null });
+      setLogoPreview(null);
       fetchUniversities();
       showToast(`University ${uniModal.mode === "add" ? "added" : "updated"} successfully!`, "success");
     } catch (err) {
@@ -274,7 +319,13 @@ export default function SystemAdminDashboard() {
             <button onClick={() => setIsMobileMenuOpen(true)} className="p-1.5 -ml-1.5 text-slate-600 hover:bg-slate-100 rounded-md"><Menu className="w-5 h-5" /></button>
             <div className="w-7 h-7 bg-indigo-600 rounded-md flex items-center justify-center text-white"><Shield className="w-4 h-4" /></div>
           </div>
-          <div className="w-8 h-8 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center font-bold text-sm border border-indigo-200">{userInitial}</div>
+          <div className="w-8 h-8 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center font-bold text-sm border border-indigo-200 overflow-hidden">
+            {user?.img_url ? (
+              <img src={user.img_url} alt="Avatar" className="w-full h-full object-cover" />
+            ) : (
+              userInitial
+            )}
+          </div>
         </header>
 
         <div className="flex-1 overflow-y-auto bg-slate-50 pb-12">
@@ -286,16 +337,25 @@ export default function SystemAdminDashboard() {
                 <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">System Overview</h2>
                 <p className="text-slate-500 mt-2 text-sm">Manage your top-level credentials and platform access.</p>
               </header>
-              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-8">
                 <div className="h-40 bg-gradient-to-r from-slate-900 via-indigo-900 to-slate-900 relative">
                   <div className="absolute top-4 right-4 px-3 py-1.5 bg-black/20 backdrop-blur-md rounded-lg text-white/90 text-xs font-bold tracking-widest border border-white/10 shadow-sm">
                     ID: {user?._id?.slice(-6).toUpperCase() || "SYS-001"}
                   </div>
                 </div>
                 <div className="px-8 pb-10 relative">
-                  <div className="w-28 h-28 bg-white rounded-2xl p-1.5 shadow-lg absolute -top-14 border border-slate-100">
-                    <div className="w-full h-full bg-indigo-50 rounded-xl flex items-center justify-center font-extrabold text-indigo-600 text-4xl">
-                      {userInitial}
+                  <div className="w-28 h-28 bg-white rounded-2xl p-1.5 shadow-lg absolute -top-14 border border-slate-100 group">
+                    <div className="w-full h-full bg-indigo-50 rounded-xl flex items-center justify-center font-extrabold text-indigo-600 text-4xl overflow-hidden relative">
+                      {imagePreview ? (
+                        <img src={imagePreview} alt="Profile" className="w-full h-full object-cover" />
+                      ) : (
+                        userInitial
+                      )}
+                      
+                      <label className="absolute inset-0 bg-black/40 flex items-center justify-center cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Camera className="w-8 h-8 text-white" />
+                        <input type="file" className="hidden" accept="image/*" onChange={handleProfilePictureChange} />
+                      </label>
                     </div>
                   </div>
                   <div className="pt-20 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -309,6 +369,22 @@ export default function SystemAdminDashboard() {
                       <ShieldCheck className="w-5 h-5" /> Master Access Level
                     </div>
                   </div>
+                </div>
+              </div>
+
+              <h3 className="text-xl font-bold text-slate-900 mb-4 mt-8 tracking-tight">Platform Statistics</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-2xl p-6 text-white shadow-lg shadow-indigo-200 transform transition-transform hover:scale-105 duration-300">
+                  <h3 className="text-indigo-100 font-semibold mb-2 uppercase tracking-wider text-xs">Total Universities</h3>
+                  <p className="text-4xl font-extrabold tracking-tight">{universitiesList.length}</p>
+                </div>
+                <div className="bg-gradient-to-br from-emerald-500 to-emerald-700 rounded-2xl p-6 text-white shadow-lg shadow-emerald-200 transform transition-transform hover:scale-105 duration-300">
+                  <h3 className="text-emerald-100 font-semibold mb-2 uppercase tracking-wider text-xs">Active Admins</h3>
+                  <p className="text-4xl font-extrabold tracking-tight">{uniAdminsList.length}</p>
+                </div>
+                <div className="bg-gradient-to-br from-blue-500 to-blue-700 rounded-2xl p-6 text-white shadow-lg shadow-blue-200 transform transition-transform hover:scale-105 duration-300">
+                  <h3 className="text-blue-100 font-semibold mb-2 uppercase tracking-wider text-xs">Global Alumni</h3>
+                  <p className="text-4xl font-extrabold tracking-tight">{alumniList.length}</p>
                 </div>
               </div>
             </div>
@@ -359,8 +435,12 @@ export default function SystemAdminDashboard() {
                       </div>
 
                       <div className="flex gap-4 mb-5">
-                        <div className="w-14 h-14 bg-gradient-to-br from-indigo-50 to-slate-100 text-indigo-700 rounded-xl flex items-center justify-center font-extrabold text-xl border border-indigo-100/50 shrink-0 shadow-inner">
-                          {(uni.name || "U").charAt(0).toUpperCase()}
+                        <div className="w-14 h-14 bg-gradient-to-br from-indigo-50 to-slate-100 text-indigo-700 rounded-xl flex items-center justify-center font-extrabold text-xl border border-indigo-100/50 shrink-0 shadow-inner overflow-hidden">
+                          {uni.img_url ? (
+                            <img src={uni.img_url} alt={uni.name} className="w-full h-full object-cover" />
+                          ) : (
+                            (uni.name || "U").charAt(0).toUpperCase()
+                          )}
                         </div>
                         <div className="flex-1 pr-12 pt-1">
                           <h4 className="font-bold text-slate-900 text-lg leading-tight mb-1">{uni.name}</h4>
@@ -519,6 +599,24 @@ export default function SystemAdminDashboard() {
               </button>
             </div>
             <form onSubmit={handleSaveUniversity} className="p-6 space-y-5">
+              <div className="flex flex-col items-center gap-4 py-2">
+                <div className="relative group">
+                  <div className="w-20 h-20 rounded-2xl bg-slate-100 border-2 border-dashed border-slate-300 flex items-center justify-center overflow-hidden transition-all group-hover:border-indigo-500/50">
+                    {logoPreview ? (
+                      <img src={logoPreview} alt="Logo" className="w-full h-full object-cover" />
+                    ) : uniModal.data?.img_url ? (
+                      <img src={uniModal.data.img_url} alt="Logo" className="w-full h-full object-cover" />
+                    ) : (
+                      <Building2 className="w-8 h-8 text-slate-400" />
+                    )}
+                  </div>
+                  <label className="absolute -bottom-2 -right-2 bg-indigo-600 text-white p-2 rounded-xl shadow-lg cursor-pointer hover:bg-indigo-700 transition-all">
+                    <Upload className="w-4 h-4" />
+                    <input type="file" name="logo" className="hidden" accept="image/*" onChange={handleLogoChange} />
+                  </label>
+                </div>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Institution Logo</p>
+              </div>
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-1.5">University Name</label>
                 <input required type="text" name="name" defaultValue={uniModal.data?.name} className="w-full px-4 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600 outline-none transition-all placeholder:text-slate-400 font-medium text-slate-900" placeholder="e.g. Dhaka University" />

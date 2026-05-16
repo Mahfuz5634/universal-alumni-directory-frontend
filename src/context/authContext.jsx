@@ -26,16 +26,23 @@ export const AuthProvider = ({ children }) => {
 
   // Login
   const login = async (data) => {
-  const res = await loginUser(data);
+    const res = await loginUser(data);
 
-  
-  localStorage.setItem("token", res.token);
-  localStorage.setItem("user", JSON.stringify(res.user));
+    localStorage.setItem("token", res.token);
+    localStorage.setItem("user", JSON.stringify(res.user));
 
-  setUser(res.user);
+    setUser(res.user);
 
-  return res;
-};
+    return res;
+  };
+
+  // Update User Data
+  const updateUser = (userData) => {
+    const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
+    const updatedUser = { ...currentUser, ...userData };
+    localStorage.setItem("user", JSON.stringify(updatedUser));
+    setUser(updatedUser);
+  };
 
   //Logout
   const logout = () => {
@@ -56,6 +63,7 @@ export const AuthProvider = ({ children }) => {
         register,
         login,
         logout,
+        updateUser,
       }}
     >
       {children}

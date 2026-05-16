@@ -199,8 +199,12 @@ export default function UniversitiesPage() {
                 className="group bg-white rounded-3xl p-6 border border-slate-200/80 shadow-sm hover:shadow-xl hover:shadow-indigo-500/5 hover:-translate-y-1 hover:border-indigo-200 transition-all duration-300 flex flex-col h-full"
               >
                 <div className="flex items-start gap-4 mb-6">
-                  <div className="w-14 h-14 shrink-0 bg-gradient-to-br from-indigo-50 to-violet-50 text-indigo-600 rounded-2xl flex items-center justify-center border border-indigo-100 group-hover:scale-110 transition-transform duration-300">
-                    <GraduationCap className="w-7 h-7" />
+                  <div className="w-14 h-14 shrink-0 bg-gradient-to-br from-indigo-50 to-violet-50 text-indigo-600 rounded-2xl flex items-center justify-center border border-indigo-100 group-hover:scale-110 transition-transform duration-300 overflow-hidden">
+                    {uni.img_url ? (
+                      <img src={uni.img_url} alt={uni.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <GraduationCap className="w-7 h-7" />
+                    )}
                   </div>
                   <div>
                     <h3 className="text-lg font-bold text-slate-900 leading-snug mb-1 group-hover:text-indigo-600 transition-colors">
